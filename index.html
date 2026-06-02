@@ -16,9 +16,8 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -174,17 +173,19 @@
             
             <div class="space-y-4">
                 <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
-                    <h3 class="font-semibold text-gray-800 dark:text-gray-100 mb-2">🆕 Crea nuovo gruppo</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Genera un codice da condividere con gli altri dispositivi</p>
-                    <button onclick="createNewGroup()" class="w-full px-4 py-2.5 bg-sagra-500 text-white rounded-lg hover:bg-sagra-600 transition font-medium">Genera Codice Gruppo</button>
-                </div>
-                
-                <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
-                    <h3 class="font-semibold text-gray-800 dark:text-gray-100 mb-2">🔗 Unisciti a gruppo</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Inserisci il codice ricevuto da un altro dispositivo</p>
-                    <div class="flex gap-2">
-                        <input type="text" id="join-group-code" class="flex-1 px-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm uppercase tracking-widest text-center font-mono focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="ABC123" maxlength="6">
-                        <button onclick="joinGroup()" class="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium">Unisciti</button>
+                    <h3 class="font-semibold text-gray-800 dark:text-gray-100 mb-2">☁️ Sincronizzazione Cloud</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Inserisci un codice gruppo condiviso tra i dispositivi e configura Firebase per la sincronizzazione in tempo reale.</p>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs font-medium text-gray-600 dark:text-gray-400">Codice Gruppo *</label>
+                            <input type="text" id="setup-group-code" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm font-mono focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="sagra-meolo-2026">
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Usa lo stesso codice su tutti i dispositivi</p>
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-gray-600 dark:text-gray-400">Firebase Config (JSON)</label>
+                            <textarea id="setup-firebase-config" rows="6" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-xs font-mono focus:ring-2 focus:ring-sagra-400 outline-none resize-y" placeholder='{"apiKey": "...", "authDomain": "...", "databaseURL": "...", "projectId": "...", "storageBucket": "...", "messagingSenderId": "...", "appId": "..."}'></textarea>
+                        </div>
+                        <button onclick="setupConnect()" class="w-full px-4 py-2.5 bg-sagra-500 text-white rounded-lg hover:bg-sagra-600 transition font-medium">🔗 Connetti e Sincronizza</button>
                     </div>
                 </div>
 
@@ -225,57 +226,77 @@
     <div id="sync-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">🔄 Sincronizzazione</h3>
+                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">☁️ Sincronizzazione Cloud</h3>
                 <button onclick="closeSyncModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">✕</button>
             </div>
             
-            <div id="sync-group-info" class="mb-4">
-                <div class="bg-sagra-50 dark:bg-sagra-900/20 border border-sagra-200 dark:border-sagra-700 rounded-lg p-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-xs text-sagra-600 dark:text-sagra-400 font-medium">Codice Gruppo</p>
-                            <p id="sync-current-code" class="text-2xl font-bold font-mono tracking-widest text-sagra-800 dark:text-sagra-300">------</p>
-                        </div>
-                        <button onclick="copyGroupCode()" class="px-3 py-2 bg-sagra-500 text-white rounded-lg hover:bg-sagra-600 transition text-sm">📋 Copia</button>
-                    </div>
-                    <p class="text-xs text-sagra-600 dark:text-sagra-400 mt-2">Condividi questo codice con gli altri dispositivi</p>
-                </div>
-            </div>
-
-            <div class="mb-4">
+            <!-- Connection Status -->
+            <div class="mb-5">
                 <h4 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Stato Connessione</h4>
                 <div id="sync-status-detail" class="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     <span class="sync-dot bg-gray-400"></span>
-                    <span class="text-sm text-gray-600 dark:text-gray-300">Non configurato</span>
+                    <span class="text-sm text-gray-600 dark:text-gray-300">Solo locale</span>
                 </div>
             </div>
 
+            <!-- Group Code -->
             <div class="mb-4">
+                <div class="bg-sagra-50 dark:bg-sagra-900/20 border border-sagra-200 dark:border-sagra-700 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <p class="text-xs text-sagra-600 dark:text-sagra-400 font-medium">Codice Gruppo</p>
+                            <p id="sync-current-code" class="text-lg font-bold font-mono text-sagra-800 dark:text-sagra-300">Non configurato</p>
+                        </div>
+                        <button onclick="copyGroupCode()" class="px-3 py-2 bg-sagra-500 text-white rounded-lg hover:bg-sagra-600 transition text-sm">📋 Copia</button>
+                    </div>
+                    <p class="text-xs text-sagra-600 dark:text-sagra-400">Tutti i dispositivi con lo stesso codice gruppo condividono i dati</p>
+                </div>
+            </div>
+
+            <!-- Firebase Configuration -->
+            <div class="mb-5">
                 <h4 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">⚙️ Configurazione Firebase</h4>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Per la sincronizzazione in tempo reale tra dispositivi diversi, inserisci la configurazione del tuo progetto Firebase.</p>
-                <div class="space-y-2">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Incolla il JSON di configurazione Firebase dal tuo progetto. I dati vengono sincronizzati in tempo reale tra tutti i dispositivi collegati.</p>
+                <div class="space-y-3">
                     <div>
-                        <label class="text-xs text-gray-500 dark:text-gray-400">Database URL *</label>
-                        <input type="text" id="firebase-url" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-xs font-mono focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="https://YOUR_PROJECT-default-rtdb.europe-west1.firebasedatabase.app">
+                        <label class="text-xs font-medium text-gray-600 dark:text-gray-400">Codice Gruppo *</label>
+                        <input type="text" id="sync-group-input" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm font-mono focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="sagra-meolo-2026">
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Identificatore condiviso (es: sagra-meolo-2026)</p>
                     </div>
                     <div>
-                        <label class="text-xs text-gray-500 dark:text-gray-400">API Key *</label>
-                        <input type="text" id="firebase-apikey" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-xs font-mono focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="YOUR_API_KEY">
+                        <label class="text-xs font-medium text-gray-600 dark:text-gray-400">Firebase Config (JSON) *</label>
+                        <textarea id="sync-firebase-json" rows="7" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-xs font-mono focus:ring-2 focus:ring-sagra-400 outline-none resize-y" placeholder='{
+  "apiKey": "AIza...",
+  "authDomain": "progetto.firebaseapp.com",
+  "databaseURL": "https://progetto-default-rtdb.europe-west1.firebasedatabase.app",
+  "projectId": "progetto",
+  "storageBucket": "progetto.appspot.com",
+  "messagingSenderId": "123456789",
+  "appId": "1:123456789:web:abc123"
+}'></textarea>
                     </div>
-                    <div>
-                        <label class="text-xs text-gray-500 dark:text-gray-400">Project ID *</label>
-                        <input type="text" id="firebase-projectid" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-xs font-mono focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="YOUR_PROJECT">
-                    </div>
-                    <div class="flex gap-2 pt-2">
-                        <button onclick="saveFirebaseConfig()" class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium">💾 Salva e Connetti</button>
-                        <button onclick="disconnectFirebase()" class="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition text-sm font-medium">Disconnetti</button>
+                    <div class="flex gap-2">
+                        <button onclick="saveFirebaseConfig()" class="flex-1 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm font-medium">🔗 Connetti</button>
+                        <button onclick="disconnectFirebase()" class="px-4 py-2.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition text-sm font-medium">🔌 Disconnetti</button>
                     </div>
                 </div>
             </div>
 
+            <!-- Info box about sync behavior -->
+            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-5">
+                <p class="text-xs text-blue-700 dark:text-blue-300 font-medium mb-1">ℹ️ Come funziona la sincronizzazione</p>
+                <ul class="text-xs text-blue-600 dark:text-blue-400 space-y-1 list-disc list-inside">
+                    <li>Alla connessione, i dati locali e remoti vengono uniti (merge)</li>
+                    <li>Ogni modifica viene sincronizzata in tempo reale</li>
+                    <li>Se la connessione cade, i dati restano in locale e si ri-sincronizzano</li>
+                    <li>Path Firebase: <code class="bg-blue-100 dark:bg-blue-900/40 px-1 rounded">/{codiceGruppo}/{anno}/voci</code></li>
+                </ul>
+            </div>
+
+            <!-- Manual Sync Fallback -->
             <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
-                <h4 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">📱 Sincronizzazione Manuale</h4>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Se non hai Firebase, puoi trasferire i dati manualmente tra dispositivi.</p>
+                <h4 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">📱 Sincronizzazione Manuale (Fallback)</h4>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Se non hai Firebase, puoi trasferire i dati manualmente tra dispositivi tramite file JSON.</p>
                 <div class="flex gap-2">
                     <button onclick="exportSyncData()" class="flex-1 px-3 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-sm hover:bg-green-200 dark:hover:bg-green-900/50 transition font-medium">📤 Esporta Dati</button>
                     <button onclick="document.getElementById('import-sync-input').click()" class="flex-1 px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg text-sm hover:bg-blue-200 dark:hover:bg-blue-900/50 transition font-medium">📥 Importa Dati</button>
@@ -284,7 +305,7 @@
             </div>
 
             <div class="border-t border-gray-200 dark:border-gray-600 pt-4 mt-4">
-                <button onclick="changeGroup()" class="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition">🔄 Cambia Gruppo / Nuovo Setup</button>
+                <button onclick="changeGroup()" class="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition">🔄 Riconfigura Sincronizzazione</button>
             </div>
         </div>
     </div>
@@ -352,7 +373,7 @@
                 <!-- Sync Status Indicator -->
                 <button onclick="openSyncModal()" id="sync-indicator" class="flex items-center gap-1.5 px-2 py-1.5 hover:bg-sagra-700 rounded-lg transition" title="Stato sincronizzazione">
                     <span id="sync-dot" class="sync-dot bg-gray-400"></span>
-                    <span id="sync-label" class="text-xs hidden sm:inline">Locale</span>
+                    <span id="sync-label" class="text-xs hidden sm:inline">Solo locale</span>
                 </button>
                 <!-- Dark Mode Toggle -->
                 <button onclick="toggleDarkMode()" id="dark-mode-btn" class="p-2 hover:bg-sagra-700 rounded-lg transition" title="Modalità scura">
@@ -896,6 +917,20 @@
             refreshUI();
             resetForm();
             resetVersamentoForm();
+            
+            // Re-setup Firebase listeners for new edition
+            if (firebaseDB && groupCode) {
+                initialMergeDone = false;
+                performInitialMerge().then(() => {
+                    initialMergeDone = true;
+                    setupFirebaseListeners();
+                }).catch(() => {
+                    initialMergeDone = true;
+                    setupFirebaseListeners();
+                    pushToFirebase();
+                });
+            }
+            
             showToast(`📅 Passato all'edizione ${year}`);
         }
 
@@ -1034,6 +1069,7 @@
         let syncListeners = [];
         let isSyncing = false;
         let broadcastChannel = null;
+        let initialMergeDone = false;
 
         const defaultSectors = ['Capannone', 'Birra', 'Sponsor', 'Tipografia', 'Supermercato', 'Bar', 'Carne', 'Pesce', 'Vino', 'Plastica', 'Intrattenimento', 'Incassi', 'Altro'];
         const entrataOnlySectors = ['Sponsor', 'Incassi'];
@@ -1092,24 +1128,27 @@
 
         // ===== FIREBASE SYNC =====
         function initFirebase() {
-            if (!firebaseConfig || !firebaseConfig.databaseURL || !firebaseConfig.apiKey) {
+            if (!firebaseConfig || !firebaseConfig.databaseURL) {
                 updateSyncStatus('local');
                 return;
             }
 
             try {
+                // Support both old format (separate fields) and new format (full config JSON)
                 const config = {
-                    apiKey: firebaseConfig.apiKey,
-                    authDomain: firebaseConfig.projectId + '.firebaseapp.com',
+                    apiKey: firebaseConfig.apiKey || '',
+                    authDomain: firebaseConfig.authDomain || (firebaseConfig.projectId ? firebaseConfig.projectId + '.firebaseapp.com' : ''),
                     databaseURL: firebaseConfig.databaseURL,
-                    projectId: firebaseConfig.projectId,
-                    storageBucket: firebaseConfig.projectId + '.appspot.com',
-                    messagingSenderId: '000000000000',
-                    appId: 'sagra-meolo-app'
+                    projectId: firebaseConfig.projectId || '',
+                    storageBucket: firebaseConfig.storageBucket || (firebaseConfig.projectId ? firebaseConfig.projectId + '.appspot.com' : ''),
+                    messagingSenderId: firebaseConfig.messagingSenderId || '000000000000',
+                    appId: firebaseConfig.appId || 'sagra-meolo-app'
                 };
 
                 if (firebaseApp) {
                     firebaseApp.delete().then(() => {
+                        startFirebase(config);
+                    }).catch(() => {
                         startFirebase(config);
                     });
                 } else {
@@ -1125,6 +1164,8 @@
             try {
                 firebaseApp = firebase.initializeApp(config, 'sagra-' + Date.now());
                 firebaseDB = firebaseApp.database();
+                
+                // Enable offline persistence
                 firebaseDB.goOnline();
 
                 const connRef = firebaseDB.ref('.info/connected');
@@ -1132,33 +1173,129 @@
                     if (snap.val() === true) {
                         firebaseConnected = true;
                         updateSyncStatus('connected');
+                        // On reconnection, do a merge push
+                        if (initialMergeDone) {
+                            pushToFirebase();
+                        }
                     } else {
                         firebaseConnected = false;
                         updateSyncStatus('offline');
                     }
                 });
 
-                setupFirebaseListeners();
-                pushToFirebase();
+                // First: merge local data with remote, then setup listeners
+                initialMergeDone = false;
+                performInitialMerge().then(() => {
+                    initialMergeDone = true;
+                    setupFirebaseListeners();
+                }).catch((err) => {
+                    console.error('Initial merge error:', err);
+                    // Still setup listeners even if merge fails
+                    initialMergeDone = true;
+                    setupFirebaseListeners();
+                    pushToFirebase();
+                });
             } catch (e) {
                 console.error('Firebase start error:', e);
                 updateSyncStatus('error');
             }
         }
 
+        // Firebase path: /{codiceGruppo}/{anno}/voci, /{codiceGruppo}/{anno}/versamenti, /{codiceGruppo}/settori
         function getFirebasePath() {
-            return groupCode ? `groups/${groupCode}/editions/${currentEdition}` : `local/editions/${currentEdition}`;
+            return groupCode || 'local';
+        }
+
+        function getEntriesPath() {
+            return `${getFirebasePath()}/${currentEdition}/voci`;
+        }
+
+        function getVersamentiPath() {
+            return `${getFirebasePath()}/${currentEdition}/versamenti`;
+        }
+
+        function getSectorsPath() {
+            return `${getFirebasePath()}/settori`;
+        }
+
+        // Merge local and remote data on first connection
+        async function performInitialMerge() {
+            if (!firebaseDB || !groupCode) return;
+
+            updateSyncStatus('syncing');
+
+            try {
+                // Fetch remote data
+                const [entriesSnap, versamentiSnap, sectorsSnap] = await Promise.all([
+                    firebaseDB.ref(getEntriesPath()).once('value'),
+                    firebaseDB.ref(getVersamentiPath()).once('value'),
+                    firebaseDB.ref(getSectorsPath()).once('value')
+                ]);
+
+                const remoteEntries = entriesSnap.val() ? Object.values(entriesSnap.val()) : [];
+                const remoteVersamenti = versamentiSnap.val() ? Object.values(versamentiSnap.val()) : [];
+                const remoteSectors = sectorsSnap.val() ? (Array.isArray(sectorsSnap.val()) ? sectorsSnap.val() : Object.values(sectorsSnap.val())) : [];
+
+                // Merge entries: combine by ID, local wins on conflict (newer createdAt)
+                const mergedEntriesMap = new Map();
+                remoteEntries.forEach(e => mergedEntriesMap.set(e.id, e));
+                entries.forEach(e => {
+                    const existing = mergedEntriesMap.get(e.id);
+                    if (!existing || (e.createdAt && existing.createdAt && e.createdAt > existing.createdAt)) {
+                        mergedEntriesMap.set(e.id, e);
+                    } else if (!existing) {
+                        mergedEntriesMap.set(e.id, e);
+                    }
+                });
+                entries = Array.from(mergedEntriesMap.values());
+
+                // Merge versamenti
+                const mergedVersamentiMap = new Map();
+                remoteVersamenti.forEach(v => mergedVersamentiMap.set(v.id, v));
+                versamenti.forEach(v => {
+                    const existing = mergedVersamentiMap.get(v.id);
+                    if (!existing || (v.createdAt && existing.createdAt && v.createdAt > existing.createdAt)) {
+                        mergedVersamentiMap.set(v.id, v);
+                    } else if (!existing) {
+                        mergedVersamentiMap.set(v.id, v);
+                    }
+                });
+                versamenti = Array.from(mergedVersamentiMap.values());
+
+                // Merge custom sectors
+                const mergedSectorsSet = new Set([...customSectors, ...remoteSectors]);
+                customSectors = Array.from(mergedSectorsSet).filter(s => !defaultSectors.includes(s));
+
+                // Save merged data locally
+                localStorage.setItem(getStorageKey('entries'), JSON.stringify(entries));
+                localStorage.setItem(getStorageKey('versamenti'), JSON.stringify(versamenti));
+                localStorage.setItem(getStorageKey('custom_sectors'), JSON.stringify(customSectors));
+
+                // Push merged data to Firebase
+                await pushToFirebaseAsync();
+
+                // Update UI
+                updateCustomSectorsInDropdown();
+                populateFilterSectors();
+                refreshUI();
+                updateSyncStatus('connected');
+
+                console.log(`Merge complete: ${entries.length} voci, ${versamenti.length} versamenti, ${customSectors.length} settori`);
+            } catch (e) {
+                console.error('Merge error:', e);
+                // If merge fails, just push local data
+                pushToFirebase();
+            }
         }
 
         function setupFirebaseListeners() {
             if (!firebaseDB || !groupCode) return;
 
-            syncListeners.forEach(ref => ref.off());
+            syncListeners.forEach(ref => { try { ref.off(); } catch(e) {} });
             syncListeners = [];
 
-            const basePath = getFirebasePath();
-
-            const entriesRef = firebaseDB.ref(`${basePath}/entries`);
+            // Listen for entries changes
+            const entriesRef = firebaseDB.ref(getEntriesPath());
             entriesRef.on('value', (snapshot) => {
                 if (isSyncing) return;
                 isSyncing = true;
@@ -1166,7 +1303,9 @@
                 if (data) {
                     entries = Object.values(data);
                 } else {
-                    if (entries.length === 0) entries = [];
+                    // Don't clear entries if we have local data and remote is empty
+                    // (could be a network glitch)
+                    if (initialMergeDone) entries = [];
                 }
                 localStorage.setItem(getStorageKey('entries'), JSON.stringify(entries));
                 refreshUI();
@@ -1174,7 +1313,8 @@
             });
             syncListeners.push(entriesRef);
 
-            const versamentiRef = firebaseDB.ref(`${basePath}/versamenti`);
+            // Listen for versamenti changes
+            const versamentiRef = firebaseDB.ref(getVersamentiPath());
             versamentiRef.on('value', (snapshot) => {
                 if (isSyncing) return;
                 isSyncing = true;
@@ -1182,7 +1322,7 @@
                 if (data) {
                     versamenti = Object.values(data);
                 } else {
-                    if (versamenti.length === 0) versamenti = [];
+                    if (initialMergeDone) versamenti = [];
                 }
                 localStorage.setItem(getStorageKey('versamenti'), JSON.stringify(versamenti));
                 refreshUI();
@@ -1190,15 +1330,17 @@
             });
             syncListeners.push(versamentiRef);
 
-            const sectorsRef = firebaseDB.ref(`${basePath}/customSectors`);
+            // Listen for custom sectors (shared across editions)
+            const sectorsRef = firebaseDB.ref(getSectorsPath());
             sectorsRef.on('value', (snapshot) => {
                 if (isSyncing) return;
                 isSyncing = true;
                 const data = snapshot.val();
                 if (data) {
                     customSectors = Array.isArray(data) ? data : Object.values(data);
+                    customSectors = customSectors.filter(s => !defaultSectors.includes(s));
                 } else {
-                    if (customSectors.length === 0) customSectors = [];
+                    if (initialMergeDone) customSectors = [];
                 }
                 localStorage.setItem(getStorageKey('custom_sectors'), JSON.stringify(customSectors));
                 updateCustomSectorsInDropdown();
@@ -1208,10 +1350,27 @@
             syncListeners.push(sectorsRef);
         }
 
+        async function pushToFirebaseAsync() {
+            if (!firebaseDB || !groupCode) return;
+
+            const entriesObj = {};
+            entries.forEach(e => { entriesObj[e.id] = e; });
+
+            const versamentiObj = {};
+            versamenti.forEach(v => { versamentiObj[v.id] = v; });
+
+            const updates = {};
+            updates[getEntriesPath()] = entriesObj;
+            updates[getVersamentiPath()] = versamentiObj;
+            updates[getSectorsPath()] = customSectors;
+            updates[`${getFirebasePath()}/${currentEdition}/lastUpdated`] = new Date().toISOString();
+
+            await firebaseDB.ref().update(updates);
+        }
+
         function pushToFirebase() {
             if (!firebaseDB || !groupCode) return;
 
-            const basePath = getFirebasePath();
             updateSyncStatus('syncing');
 
             try {
@@ -1222,10 +1381,10 @@
                 versamenti.forEach(v => { versamentiObj[v.id] = v; });
 
                 const updates = {};
-                updates[`${basePath}/entries`] = entriesObj;
-                updates[`${basePath}/versamenti`] = versamentiObj;
-                updates[`${basePath}/customSectors`] = customSectors;
-                updates[`${basePath}/lastUpdated`] = new Date().toISOString();
+                updates[getEntriesPath()] = entriesObj;
+                updates[getVersamentiPath()] = versamentiObj;
+                updates[getSectorsPath()] = customSectors;
+                updates[`${getFirebasePath()}/${currentEdition}/lastUpdated`] = new Date().toISOString();
 
                 firebaseDB.ref().update(updates).then(() => {
                     updateSyncStatus('connected');
@@ -1241,17 +1400,21 @@
 
         function disconnectFirebase() {
             if (firebaseApp) {
-                syncListeners.forEach(ref => ref.off());
+                syncListeners.forEach(ref => { try { ref.off(); } catch(e) {} });
                 syncListeners = [];
                 firebaseApp.delete().catch(() => {});
                 firebaseApp = null;
                 firebaseDB = null;
             }
             firebaseConnected = false;
+            initialMergeDone = false;
             firebaseConfig = null;
+            groupCode = '';
             localStorage.removeItem('sagra_firebase_config');
+            localStorage.removeItem('sagra_group_code');
             updateSyncStatus('local');
-            showToast('🔌 Firebase disconnesso');
+            updateGroupCodeDisplay();
+            showToast('🔌 Firebase disconnesso - modalità solo locale');
         }
 
         // ===== SYNC STATUS UI =====
@@ -1259,78 +1422,88 @@
             const dot = document.getElementById('sync-dot');
             const label = document.getElementById('sync-label');
             const detailEl = document.getElementById('sync-status-detail');
+            const indicator = document.getElementById('sync-indicator');
 
             switch (status) {
                 case 'connected':
                     dot.className = 'sync-dot bg-green-400';
                     dot.classList.remove('sync-pulse');
                     label.textContent = 'Sincronizzato';
-                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-green-400" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-green-600 dark:text-green-400 ml-2">Connesso e sincronizzato</span>';
+                    if (indicator) indicator.title = 'Sincronizzato - dati aggiornati in tempo reale';
+                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-green-400" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-green-600 dark:text-green-400 ml-2">✅ Connesso e sincronizzato in tempo reale</span>';
                     break;
                 case 'syncing':
                     dot.className = 'sync-dot bg-yellow-400 sync-pulse';
-                    label.textContent = 'Sincronizzando...';
-                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-yellow-400 sync-pulse" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-yellow-600 dark:text-yellow-400 ml-2">Sincronizzazione in corso...</span>';
+                    label.textContent = 'In sincronizzazione';
+                    if (indicator) indicator.title = 'In sincronizzazione...';
+                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-yellow-400 sync-pulse" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-yellow-600 dark:text-yellow-400 ml-2">⏳ Sincronizzazione in corso...</span>';
                     break;
                 case 'offline':
                     dot.className = 'sync-dot bg-orange-400';
                     dot.classList.remove('sync-pulse');
                     label.textContent = 'Offline';
-                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-orange-400" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-orange-600 dark:text-orange-400 ml-2">Offline - i dati saranno sincronizzati alla riconnessione</span>';
+                    if (indicator) indicator.title = 'Offline - i dati si sincronizzeranno alla riconnessione';
+                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-orange-400" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-orange-600 dark:text-orange-400 ml-2">📴 Offline - dati salvati localmente, si sincronizzeranno alla riconnessione</span>';
                     break;
                 case 'error':
                     dot.className = 'sync-dot bg-red-400';
                     dot.classList.remove('sync-pulse');
                     label.textContent = 'Errore';
-                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-red-400" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-red-600 dark:text-red-400 ml-2">Errore di connessione</span>';
+                    if (indicator) indicator.title = 'Errore di connessione Firebase';
+                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-red-400" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-red-600 dark:text-red-400 ml-2">❌ Errore di connessione - verifica la configurazione Firebase</span>';
                     break;
                 case 'local':
                 default:
                     dot.className = 'sync-dot bg-gray-400';
                     dot.classList.remove('sync-pulse');
-                    label.textContent = 'Locale';
-                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-gray-400" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-gray-600 dark:text-gray-300 ml-2">Solo locale - nessuna sincronizzazione attiva</span>';
+                    label.textContent = 'Solo locale';
+                    if (indicator) indicator.title = 'Solo locale - nessuna sincronizzazione cloud attiva';
+                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-gray-400" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-gray-600 dark:text-gray-300 ml-2">💾 Solo locale - configura Firebase per sincronizzare</span>';
                     break;
             }
         }
 
         // ===== GROUP CODE MANAGEMENT =====
-        function generateGroupCode() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            let code = '';
-            for (let i = 0; i < 6; i++) {
-                code += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return code;
-        }
+        function setupConnect() {
+            const code = document.getElementById('setup-group-code').value.trim();
+            const configText = document.getElementById('setup-firebase-config').value.trim();
 
-        function createNewGroup() {
-            groupCode = generateGroupCode();
-            localStorage.setItem('sagra_group_code', groupCode);
-            document.getElementById('setup-modal').classList.add('hidden');
-            updateGroupCodeDisplay();
-            initBroadcastChannel();
-            if (firebaseConfig) {
-                initFirebase();
-            }
-            showToast(`✅ Gruppo creato! Codice: ${groupCode}`);
-        }
-
-        function joinGroup() {
-            const code = document.getElementById('join-group-code').value.trim().toUpperCase();
-            if (!code || code.length !== 6) {
-                showToast('⚠️ Inserisci un codice di 6 caratteri', 'warning');
+            if (!code) {
+                showToast('⚠️ Inserisci un codice gruppo!', 'warning');
                 return;
             }
-            groupCode = code;
+
+            // Sanitize group code (make URL-safe for Firebase paths)
+            groupCode = code.replace(/[.#$\[\]\/]/g, '-').replace(/\s+/g, '-');
             localStorage.setItem('sagra_group_code', groupCode);
+
+            if (configText) {
+                try {
+                    const config = JSON.parse(configText);
+                    if (!config.databaseURL) {
+                        showToast('⚠️ La config Firebase deve contenere "databaseURL"', 'warning');
+                        return;
+                    }
+                    firebaseConfig = config;
+                    localStorage.setItem('sagra_firebase_config', JSON.stringify(firebaseConfig));
+                } catch (e) {
+                    showToast('❌ JSON Firebase non valido! Verifica il formato.', 'error');
+                    return;
+                }
+            }
+
+            localStorage.setItem('sagra_setup_done', 'true');
             document.getElementById('setup-modal').classList.add('hidden');
             updateGroupCodeDisplay();
             initBroadcastChannel();
+
             if (firebaseConfig) {
                 initFirebase();
+                showToast(`🔗 Connesso al gruppo: ${groupCode}`);
+            } else {
+                updateSyncStatus('local');
+                showToast(`✅ Gruppo impostato: ${groupCode} (solo locale)`);
             }
-            showToast(`✅ Unito al gruppo: ${groupCode}`);
         }
 
         function skipSetup() {
@@ -1341,13 +1514,18 @@
 
         function changeGroup() {
             closeSyncModal();
+            // Pre-fill setup modal with current values
+            document.getElementById('setup-group-code').value = groupCode || '';
+            if (firebaseConfig) {
+                document.getElementById('setup-firebase-config').value = JSON.stringify(firebaseConfig, null, 2);
+            }
             document.getElementById('setup-modal').classList.remove('hidden');
         }
 
         function updateGroupCodeDisplay() {
             const codeEl = document.getElementById('sync-current-code');
             if (codeEl) {
-                codeEl.textContent = groupCode || '------';
+                codeEl.textContent = groupCode || 'Non configurato';
             }
         }
 
@@ -1364,6 +1542,8 @@
                     document.body.removeChild(ta);
                     showToast('📋 Codice copiato: ' + groupCode);
                 });
+            } else {
+                showToast('ℹ️ Nessun codice gruppo configurato', 'warning');
             }
         }
 
@@ -1371,10 +1551,12 @@
         function openSyncModal() {
             document.getElementById('sync-modal').classList.remove('hidden');
             updateGroupCodeDisplay();
+            // Pre-fill the fields
+            document.getElementById('sync-group-input').value = groupCode || '';
             if (firebaseConfig) {
-                document.getElementById('firebase-url').value = firebaseConfig.databaseURL || '';
-                document.getElementById('firebase-apikey').value = firebaseConfig.apiKey || '';
-                document.getElementById('firebase-projectid').value = firebaseConfig.projectId || '';
+                document.getElementById('sync-firebase-json').value = JSON.stringify(firebaseConfig, null, 2);
+            } else {
+                document.getElementById('sync-firebase-json').value = '';
             }
         }
 
@@ -1383,26 +1565,54 @@
         }
 
         function saveFirebaseConfig() {
-            const url = document.getElementById('firebase-url').value.trim();
-            const apiKey = document.getElementById('firebase-apikey').value.trim();
-            const projectId = document.getElementById('firebase-projectid').value.trim();
+            const code = document.getElementById('sync-group-input').value.trim();
+            const configText = document.getElementById('sync-firebase-json').value.trim();
 
-            if (!url || !apiKey || !projectId) {
-                showToast('⚠️ Compila tutti i campi obbligatori', 'warning');
+            if (!code) {
+                showToast('⚠️ Inserisci un codice gruppo!', 'warning');
                 return;
             }
 
-            firebaseConfig = { databaseURL: url, apiKey: apiKey, projectId: projectId };
-            localStorage.setItem('sagra_firebase_config', JSON.stringify(firebaseConfig));
-
-            if (!groupCode) {
-                groupCode = generateGroupCode();
-                localStorage.setItem('sagra_group_code', groupCode);
-                updateGroupCodeDisplay();
+            if (!configText) {
+                showToast('⚠️ Inserisci la configurazione Firebase JSON!', 'warning');
+                return;
             }
 
+            let config;
+            try {
+                config = JSON.parse(configText);
+            } catch (e) {
+                showToast('❌ JSON non valido! Verifica il formato della configurazione.', 'error');
+                return;
+            }
+
+            if (!config.databaseURL) {
+                showToast('⚠️ La configurazione deve contenere il campo "databaseURL"!', 'warning');
+                return;
+            }
+
+            // Disconnect existing connection first
+            if (firebaseApp) {
+                syncListeners.forEach(ref => { try { ref.off(); } catch(e) {} });
+                syncListeners = [];
+                firebaseApp.delete().catch(() => {});
+                firebaseApp = null;
+                firebaseDB = null;
+                firebaseConnected = false;
+            }
+
+            // Sanitize group code
+            groupCode = code.replace(/[.#$\[\]\/]/g, '-').replace(/\s+/g, '-');
+            localStorage.setItem('sagra_group_code', groupCode);
+
+            firebaseConfig = config;
+            localStorage.setItem('sagra_firebase_config', JSON.stringify(firebaseConfig));
+            localStorage.setItem('sagra_setup_done', 'true');
+
+            updateGroupCodeDisplay();
+            initBroadcastChannel();
             initFirebase();
-            showToast('🔗 Connessione Firebase configurata!');
+            showToast(`🔗 Connesso! Gruppo: ${groupCode}`);
         }
 
         // ===== MANUAL SYNC (Export/Import) =====
@@ -1525,6 +1735,7 @@
             } else {
                 updateSyncStatus('local');
             }
+
         }
 
         function updateTabCounts() {
