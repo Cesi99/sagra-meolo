@@ -1,0 +1,2603 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Sagra Meolo">
+    <meta name="theme-color" content="#d97706">
+    <meta name="description" content="Gestione Entrate e Uscite - Sagra di Meolo">
+    <title>Sagra di Meolo - Gestione Entrate e Uscite</title>
+    <link rel="manifest" id="manifest-link">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        sagra: {
+                            50: '#fffbeb',
+                            100: '#fef3c7',
+                            200: '#fde68a',
+                            300: '#fcd34d',
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            700: '#b45309',
+                            800: '#92400e',
+                            900: '#78350f',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .tab-transition { transition: all 0.3s ease; }
+        .toast-enter { animation: slideIn 0.3s ease-out; }
+        .toast-exit { animation: slideOut 0.3s ease-in; }
+        @keyframes slideIn { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-100%); opacity: 0; } }
+        .fade-in { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+        @media screen and (max-width: 767px) {
+            input, select, textarea { font-size: 16px !important; }
+        }
+        @media screen and (max-width: 767px) {
+            .touch-target { min-height: 44px; min-width: 44px; }
+            button, a, select, input[type="checkbox"] + .slider { min-height: 44px; }
+        }
+        .bottom-nav {
+            display: none;
+        }
+        @media screen and (max-width: 767px) {
+            .bottom-nav {
+                display: flex;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 40;
+                background: white;
+                border-top: 1px solid #e5e7eb;
+                padding: 4px 0;
+                padding-bottom: env(safe-area-inset-bottom, 4px);
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            }
+            .dark .bottom-nav {
+                background: #1f2937;
+                border-top-color: #374151;
+            }
+            .top-nav-tabs {
+                display: none !important;
+            }
+            main {
+                padding-bottom: 80px !important;
+            }
+        }
+        .bottom-nav-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 4px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            min-height: 56px;
+            gap: 2px;
+        }
+        .bottom-nav-btn.active {
+            color: #d97706;
+        }
+        .bottom-nav-btn.active .bottom-nav-icon {
+            transform: scale(1.1);
+        }
+        .dark .bottom-nav-btn.active {
+            color: #fbbf24;
+        }
+        .bottom-nav-icon {
+            font-size: 20px;
+            line-height: 1;
+            transition: transform 0.2s;
+        }
+        .bottom-nav-label {
+            font-size: 10px;
+            font-weight: 600;
+            line-height: 1;
+        }
+        .switch { position: relative; display: inline-block; width: 48px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .3s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: #f59e0b; }
+        input:checked + .slider:before { transform: translateX(24px); }
+        .dark input:checked + .slider { background-color: #fbbf24; }
+        .sortable { cursor: pointer; user-select: none; }
+        .sortable:hover { background-color: rgba(245, 158, 11, 0.1); }
+        .sort-arrow { margin-left: 4px; font-size: 10px; }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .sync-pulse { animation: pulse-dot 1.5s ease-in-out infinite; }
+        .sync-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .edition-selector {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            padding: 4px 8px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .edition-selector:hover {
+            background: rgba(255,255,255,0.25);
+        }
+        .edition-selector option {
+            color: #1f2937;
+            background: white;
+        }
+        .dark .edition-selector option {
+            color: #e5e7eb;
+            background: #1f2937;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen font-sans transition-colors duration-300 overflow-x-hidden">
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-4 right-4 z-50 hidden">
+        <div class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 toast-enter">
+            <span>✅</span>
+            <span id="toast-message">Operazione completata!</span>
+        </div>
+    </div>
+
+    <!-- Setup Modal (Group Code) -->
+    <div id="setup-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6">
+            <div class="text-center mb-6">
+                <span class="text-5xl">🎪</span>
+                <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100 mt-3">Benvenuto!</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Configura la sincronizzazione tra dispositivi</p>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                    <h3 class="font-semibold text-gray-800 dark:text-gray-100 mb-2">🆕 Crea nuovo gruppo</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Genera un codice da condividere con gli altri dispositivi</p>
+                    <button onclick="createNewGroup()" class="w-full px-4 py-2.5 bg-sagra-500 text-white rounded-lg hover:bg-sagra-600 transition font-medium">Genera Codice Gruppo</button>
+                </div>
+                
+                <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                    <h3 class="font-semibold text-gray-800 dark:text-gray-100 mb-2">🔗 Unisciti a gruppo</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Inserisci il codice ricevuto da un altro dispositivo</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="join-group-code" class="flex-1 px-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm uppercase tracking-widest text-center font-mono focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="ABC123" maxlength="6">
+                        <button onclick="joinGroup()" class="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium">Unisciti</button>
+                    </div>
+                </div>
+
+                <div class="text-center pt-2">
+                    <button onclick="skipSetup()" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline">Continua senza sincronizzazione (solo locale)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edition Management Modal -->
+    <div id="edition-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl max-w-sm w-full max-h-[90vh] overflow-y-auto p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">📅 Gestione Edizioni</h3>
+                <button onclick="closeEditionModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">✕</button>
+            </div>
+            
+            <!-- Create new edition -->
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Nuova edizione (anno)</label>
+                <div class="flex gap-2">
+                    <input type="number" id="new-edition-year" class="flex-1 px-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-base font-mono focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="2027" min="2000" max="2099">
+                    <button onclick="createEdition()" class="px-4 py-2.5 bg-sagra-500 text-white rounded-lg hover:bg-sagra-600 transition font-medium">Crea</button>
+                </div>
+            </div>
+
+            <!-- List of editions -->
+            <div>
+                <h4 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Edizioni disponibili</h4>
+                <div id="editions-list" class="space-y-2">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sync Settings Modal -->
+    <div id="sync-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">🔄 Sincronizzazione</h3>
+                <button onclick="closeSyncModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">✕</button>
+            </div>
+            
+            <div id="sync-group-info" class="mb-4">
+                <div class="bg-sagra-50 dark:bg-sagra-900/20 border border-sagra-200 dark:border-sagra-700 rounded-lg p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-sagra-600 dark:text-sagra-400 font-medium">Codice Gruppo</p>
+                            <p id="sync-current-code" class="text-2xl font-bold font-mono tracking-widest text-sagra-800 dark:text-sagra-300">------</p>
+                        </div>
+                        <button onclick="copyGroupCode()" class="px-3 py-2 bg-sagra-500 text-white rounded-lg hover:bg-sagra-600 transition text-sm">📋 Copia</button>
+                    </div>
+                    <p class="text-xs text-sagra-600 dark:text-sagra-400 mt-2">Condividi questo codice con gli altri dispositivi</p>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <h4 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Stato Connessione</h4>
+                <div id="sync-status-detail" class="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <span class="sync-dot bg-gray-400"></span>
+                    <span class="text-sm text-gray-600 dark:text-gray-300">Non configurato</span>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <h4 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">⚙️ Configurazione Firebase</h4>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Per la sincronizzazione in tempo reale tra dispositivi diversi, inserisci la configurazione del tuo progetto Firebase.</p>
+                <div class="space-y-2">
+                    <div>
+                        <label class="text-xs text-gray-500 dark:text-gray-400">Database URL *</label>
+                        <input type="text" id="firebase-url" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-xs font-mono focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="https://YOUR_PROJECT-default-rtdb.europe-west1.firebasedatabase.app">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500 dark:text-gray-400">API Key *</label>
+                        <input type="text" id="firebase-apikey" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-xs font-mono focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="YOUR_API_KEY">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500 dark:text-gray-400">Project ID *</label>
+                        <input type="text" id="firebase-projectid" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-xs font-mono focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="YOUR_PROJECT">
+                    </div>
+                    <div class="flex gap-2 pt-2">
+                        <button onclick="saveFirebaseConfig()" class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium">💾 Salva e Connetti</button>
+                        <button onclick="disconnectFirebase()" class="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition text-sm font-medium">Disconnetti</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
+                <h4 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">📱 Sincronizzazione Manuale</h4>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Se non hai Firebase, puoi trasferire i dati manualmente tra dispositivi.</p>
+                <div class="flex gap-2">
+                    <button onclick="exportSyncData()" class="flex-1 px-3 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-sm hover:bg-green-200 dark:hover:bg-green-900/50 transition font-medium">📤 Esporta Dati</button>
+                    <button onclick="document.getElementById('import-sync-input').click()" class="flex-1 px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg text-sm hover:bg-blue-200 dark:hover:bg-blue-900/50 transition font-medium">📥 Importa Dati</button>
+                    <input type="file" id="import-sync-input" accept=".json" class="hidden" onchange="importSyncData(event)">
+                </div>
+            </div>
+
+            <div class="border-t border-gray-200 dark:border-gray-600 pt-4 mt-4">
+                <button onclick="changeGroup()" class="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition">🔄 Cambia Gruppo / Nuovo Setup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sector Management Modal -->
+    <div id="sector-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">⚙️ Gestione Settori</h3>
+                <button onclick="closeSectorModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">✕</button>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Aggiungi nuovo settore</label>
+                <div class="flex gap-2">
+                    <input type="text" id="new-sector-input" class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="Nome settore...">
+                    <button onclick="addCustomSectorFromModal()" class="px-4 py-2 bg-sagra-500 text-white rounded-lg hover:bg-sagra-600 transition text-sm font-medium">Aggiungi</button>
+                </div>
+            </div>
+            <div class="mb-4">
+                <h4 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Settori predefiniti</h4>
+                <div class="flex flex-wrap gap-2">
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs">🏗️ Capannone</span>
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs">🍺 Birra</span>
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs">🤝 Sponsor</span>
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs">🖨️ Tipografia</span>
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs">🛒 Supermercato</span>
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs">☕ Bar</span>
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs">🥩 Carne</span>
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs">🐟 Pesce</span>
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs">🍷 Vino</span>
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs">♻️ Plastica</span>
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs">🎶 Intrattenimento</span>
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs">💰 Incassi</span>
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs">📦 Altro</span>
+                </div>
+            </div>
+            <div>
+                <h4 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Settori personalizzati</h4>
+                <div id="custom-sectors-list" class="space-y-2">
+                    <p class="text-sm text-gray-400 dark:text-gray-500 italic">Nessun settore personalizzato aggiunto</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-sagra-600 to-sagra-800 dark:from-sagra-800 dark:to-sagra-900 text-white shadow-lg">
+        <div class="max-w-full mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="text-3xl">🎪</span>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold">Sagra di Meolo</h1>
+                    <p class="text-sagra-200 text-sm">Gestione Entrate e Uscite</p>
+                </div>
+                <!-- Edition Selector -->
+                <div class="flex items-center gap-1 ml-2 md:ml-4">
+                    <select id="edition-select" class="edition-selector" onchange="switchEdition(this.value)" title="Seleziona edizione">
+                    </select>
+                    <button onclick="openEditionModal()" class="p-1.5 hover:bg-white/20 rounded-lg transition text-white" title="Gestisci edizioni">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <!-- Sync Status Indicator -->
+                <button onclick="openSyncModal()" id="sync-indicator" class="flex items-center gap-1.5 px-2 py-1.5 hover:bg-sagra-700 rounded-lg transition" title="Stato sincronizzazione">
+                    <span id="sync-dot" class="sync-dot bg-gray-400"></span>
+                    <span id="sync-label" class="text-xs hidden sm:inline">Locale</span>
+                </button>
+                <!-- Dark Mode Toggle -->
+                <button onclick="toggleDarkMode()" id="dark-mode-btn" class="p-2 hover:bg-sagra-700 rounded-lg transition" title="Modalità scura">
+                    <span id="dark-mode-icon">🌙</span>
+                </button>
+                <div class="relative">
+                    <button onclick="toggleSettings()" class="p-2 hover:bg-sagra-700 rounded-lg transition">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </button>
+                    <div id="settings-menu" class="hidden absolute right-0 top-12 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 min-w-56 z-50">
+                        <h3 class="text-gray-800 dark:text-gray-100 font-semibold mb-3 text-sm">⚙️ Impostazioni</h3>
+                        <button onclick="openSyncModal(); toggleSettings();" class="w-full text-left px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-sagra-50 dark:hover:bg-gray-700 rounded-lg text-sm flex items-center gap-2">
+                            🔄 Sincronizzazione
+                        </button>
+                        <button onclick="openEditionModal(); toggleSettings();" class="w-full text-left px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-sagra-50 dark:hover:bg-gray-700 rounded-lg text-sm flex items-center gap-2">
+                            📅 Gestione Edizioni
+                        </button>
+                        <button onclick="backupData()" class="w-full text-left px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-sagra-50 dark:hover:bg-gray-700 rounded-lg text-sm flex items-center gap-2">
+                            💾 Backup Dati
+                        </button>
+                        <button onclick="document.getElementById('restore-input').click()" class="w-full text-left px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-sagra-50 dark:hover:bg-gray-700 rounded-lg text-sm flex items-center gap-2">
+                            📂 Ripristina Dati
+                        </button>
+                        <input type="file" id="restore-input" accept=".json" class="hidden" onchange="restoreData(event)">
+                        <button onclick="installApp()" id="install-btn" class="hidden w-full text-left px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-sagra-50 dark:hover:bg-gray-700 rounded-lg text-sm flex items-center gap-2">
+                            📲 Installa App
+                        </button>
+                        <hr class="my-2 dark:border-gray-700">
+                        <button onclick="clearAllData()" class="w-full text-left px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm flex items-center gap-2">
+                            🗑️ Cancella Dati Edizione
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs (Desktop) -->
+    <nav class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-40 transition-colors top-nav-tabs">
+        <div class="max-w-full mx-auto px-4">
+            <div class="flex">
+                <button onclick="switchTab('inserimento')" id="tab-inserimento" class="tab-btn flex-1 md:flex-none px-4 md:px-8 py-4 text-sm md:text-base font-medium border-b-3 border-sagra-500 text-sagra-700 dark:text-sagra-400 transition">
+                    📝 <span class="hidden sm:inline">Inserimento</span><span class="sm:hidden">Nuovo</span>
+                </button>
+                <button onclick="switchTab('voci')" id="tab-voci" class="tab-btn flex-1 md:flex-none px-4 md:px-8 py-4 text-sm md:text-base font-medium border-b-3 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition">
+                    📋 <span class="hidden sm:inline">Lista</span><span class="sm:hidden">Lista</span> <span id="tab-voci-count" class="text-xs bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded-full ml-1"></span>
+                </button>
+                <button onclick="switchTab('versamenti')" id="tab-versamenti" class="tab-btn flex-1 md:flex-none px-4 md:px-8 py-4 text-sm md:text-base font-medium border-b-3 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition">
+                    🏦 <span class="hidden sm:inline">Versamenti</span><span class="sm:hidden">Banca</span> <span id="tab-versamenti-count" class="text-xs bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded-full ml-1"></span>
+                </button>
+                <button onclick="switchTab('riepilogo')" id="tab-riepilogo" class="tab-btn flex-1 md:flex-none px-4 md:px-8 py-4 text-sm md:text-base font-medium border-b-3 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition">
+                    📊 <span class="hidden sm:inline">Riepilogo</span><span class="sm:hidden">Report</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Bottom Navigation (Mobile) -->
+    <nav class="bottom-nav" id="bottom-nav">
+        <button onclick="switchTab('inserimento')" id="bnav-inserimento" class="bottom-nav-btn active">
+            <span class="bottom-nav-icon">📝</span>
+            <span class="bottom-nav-label">Nuovo</span>
+        </button>
+        <button onclick="switchTab('voci')" id="bnav-voci" class="bottom-nav-btn">
+            <span class="bottom-nav-icon">📋</span>
+            <span class="bottom-nav-label">Lista</span>
+        </button>
+        <button onclick="switchTab('versamenti')" id="bnav-versamenti" class="bottom-nav-btn">
+            <span class="bottom-nav-icon">🏦</span>
+            <span class="bottom-nav-label">Banca</span>
+        </button>
+        <button onclick="switchTab('riepilogo')" id="bnav-riepilogo" class="bottom-nav-btn">
+            <span class="bottom-nav-icon">📊</span>
+            <span class="bottom-nav-label">Report</span>
+        </button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-full mx-auto px-4 py-6">
+        <!-- Section 1: Inserimento -->
+        <section id="section-inserimento" class="fade-in">
+            <div class="max-w-7xl mx-auto">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                    <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6 flex items-center gap-2">
+                        📝 Nuova Voce
+                    </h2>
+                    <form id="entry-form" onsubmit="saveEntry(event)">
+                        <input type="hidden" id="edit-id" value="">
+                        
+                        <!-- Riga 1: Descrizione + Settore -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 mb-4">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Descrizione *</label>
+                                <input type="text" id="descrizione" required class="w-full px-4 py-3 md:py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-sagra-400 focus:border-sagra-400 outline-none transition text-base" placeholder="Es. Panini per il banco...">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Settore</label>
+                                <div class="flex gap-2">
+                                    <select id="settore" class="flex-1 px-4 py-3 md:py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-sagra-400 focus:border-sagra-400 outline-none transition text-base" onchange="onSettoreChange()">
+                                        <option value="Capannone">🏗️ Capannone</option>
+                                        <option value="Birra">🍺 Birra</option>
+                                        <option value="Sponsor">🤝 Sponsor</option>
+                                        <option value="Tipografia">🖨️ Tipografia</option>
+                                        <option value="Supermercato">🛒 Supermercato</option>
+                                        <option value="Bar">☕ Bar</option>
+                                        <option value="Carne">🥩 Carne</option>
+                                        <option value="Pesce">🐟 Pesce</option>
+                                        <option value="Vino">🍷 Vino</option>
+                                        <option value="Plastica">♻️ Plastica</option>
+                                        <option value="Intrattenimento">🎶 Intrattenimento</option>
+                                        <option value="Incassi">💰 Incassi</option>
+                                        <option value="Altro">📦 Altro</option>
+                                    </select>
+                                    <button type="button" onclick="openSectorModal()" class="px-4 py-3 md:py-2.5 bg-sagra-100 dark:bg-sagra-900 text-sagra-700 dark:text-sagra-300 rounded-lg hover:bg-sagra-200 dark:hover:bg-sagra-800 transition font-bold touch-target" title="Gestisci settori">⚙️</button>
+                                </div>
+                                <!-- Tipo Badge -->
+                                <div id="tipo-badge" class="mt-2">
+                                    <span id="tipo-badge-content" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">🔴 Uscita</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Riga 2: Quantità + Prezzo Unitario + IVA -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Quantità</label>
+                                <input type="number" id="quantita" value="1" min="0.01" step="0.01" class="w-full px-4 py-3 md:py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-sagra-400 focus:border-sagra-400 outline-none transition text-base" oninput="updatePreview()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Prezzo Unitario (€) *</label>
+                                <input type="number" id="importo" required step="0.01" min="0" class="w-full px-4 py-3 md:py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-sagra-400 focus:border-sagra-400 outline-none transition text-base" placeholder="0.00" oninput="updatePreview()">
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-3 mb-2">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">IVA</label>
+                                    <label class="switch">
+                                        <input type="checkbox" id="iva-toggle" onchange="toggleIva()">
+                                        <span class="slider"></span>
+                                    </label>
+                                    <span id="iva-label" class="text-sm text-gray-500 dark:text-gray-400">Non applicata</span>
+                                </div>
+                                <div id="iva-select-container" class="hidden">
+                                    <select id="iva-rate" class="w-full px-4 py-3 md:py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-sagra-400 focus:border-sagra-400 outline-none transition text-base" onchange="updatePreview()">
+                                        <option value="4">4%</option>
+                                        <option value="5">5%</option>
+                                        <option value="10">10%</option>
+                                        <option value="22" selected>22%</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Riga 3: Data + Note -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 mb-5">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Data</label>
+                                <input type="date" id="data" class="w-full px-4 py-3 md:py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-sagra-400 focus:border-sagra-400 outline-none transition text-base">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Note</label>
+                                <input type="text" id="note" class="w-full px-4 py-3 md:py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-sagra-400 focus:border-sagra-400 outline-none transition text-base" placeholder="Note aggiuntive (facoltativo)...">
+                            </div>
+                        </div>
+
+                        <!-- Preview -->
+                        <div id="preview" class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 mb-5 border border-gray-200 dark:border-gray-600">
+                            <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2">📊 Anteprima</h3>
+                            <div class="grid grid-cols-3 gap-3 text-center">
+                                <div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">Netto</p>
+                                    <p id="preview-netto" class="text-lg font-bold text-gray-800 dark:text-gray-100">€ 0,00</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">IVA</p>
+                                    <p id="preview-iva" class="text-lg font-bold text-gray-600 dark:text-gray-300">€ 0,00</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">Lordo</p>
+                                    <p id="preview-lordo" class="text-lg font-bold text-sagra-700 dark:text-sagra-400">€ 0,00</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit -->
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <button type="submit" id="submit-btn" class="flex-1 bg-gradient-to-r from-sagra-500 to-sagra-600 text-white py-3.5 md:py-3 rounded-lg font-semibold hover:from-sagra-600 hover:to-sagra-700 transition shadow-md hover:shadow-lg text-base touch-target">
+                                💾 Salva Voce
+                            </button>
+                            <button type="button" id="cancel-edit-btn" onclick="cancelEdit()" class="hidden flex-1 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 py-3.5 md:py-3 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500 transition text-base touch-target">
+                                ❌ Annulla Modifica
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Voci -->
+        <section id="section-voci" class="hidden fade-in">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 md:p-6 mb-6">
+                <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
+                    🔍 Filtri
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Settore</label>
+                        <select id="filter-settore" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-base md:text-sm focus:ring-2 focus:ring-sagra-400 outline-none" onchange="applyFilters()">
+                            <option value="">Tutti i settori</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Cerca Descrizione</label>
+                        <input type="text" id="filter-desc" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-base md:text-sm focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="Cerca..." oninput="applyFilters()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Tipo</label>
+                        <select id="filter-tipo" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-base md:text-sm focus:ring-2 focus:ring-sagra-400 outline-none" onchange="applyFilters()">
+                            <option value="">Tutti</option>
+                            <option value="entrata">🟢 Entrata</option>
+                            <option value="uscita">🔴 Uscita</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Data da</label>
+                        <input type="date" id="filter-data-da" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-base md:text-sm focus:ring-2 focus:ring-sagra-400 outline-none" onchange="applyFilters()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Data a</label>
+                        <input type="date" id="filter-data-a" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-base md:text-sm focus:ring-2 focus:ring-sagra-400 outline-none" onchange="applyFilters()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Importo min (€)</label>
+                        <input type="number" id="filter-importo-min" step="0.01" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-base md:text-sm focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="0.00" oninput="applyFilters()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Importo max (€)</label>
+                        <input type="number" id="filter-importo-max" step="0.01" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-base md:text-sm focus:ring-2 focus:ring-sagra-400 outline-none" placeholder="999999" oninput="applyFilters()">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="resetFilters()" class="w-full px-3 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition touch-target">🔄 Reset Filtri</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Entries Count -->
+            <div class="flex items-center justify-between mb-4">
+                <p id="entries-count" class="text-sm text-gray-600 dark:text-gray-400">0 voci trovate</p>
+            </div>
+
+            <!-- Desktop Table -->
+            <div class="hidden md:block bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase sortable" onclick="sortEntries('data')">Data <span id="sort-arrow-data" class="sort-arrow"></span></th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Descrizione</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase sortable" onclick="sortEntries('settore')">Settore <span id="sort-arrow-settore" class="sort-arrow"></span></th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Tipo</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Netto</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">IVA</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase sortable" onclick="sortEntries('lordo')">Lordo <span id="sort-arrow-lordo" class="sort-arrow"></span></th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Note</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="entries-table-body" class="divide-y divide-gray-100 dark:divide-gray-700">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Mobile Cards -->
+            <div id="entries-cards" class="md:hidden space-y-3">
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="hidden text-center py-12">
+                <span class="text-5xl">📭</span>
+                <p class="mt-4 text-gray-500 dark:text-gray-400 text-lg">Nessuna voce trovata</p>
+                <p class="text-gray-400 dark:text-gray-500 text-sm">Inserisci la tua prima voce nella sezione "Inserimento"</p>
+            </div>
+        </section>
+
+        <!-- Section 3: Versamenti -->
+        <section id="section-versamenti" class="hidden fade-in">
+            <div class="max-w-4xl mx-auto">
+                <!-- Form Versamento -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
+                    <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6 flex items-center gap-2">
+                        🏦 Nuovo Versamento in Banca
+                    </h2>
+                    <form id="versamento-form" onsubmit="saveVersamento(event)">
+                        <input type="hidden" id="versamento-edit-id" value="">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Importo (€) *</label>
+                                <input type="number" id="versamento-importo" required step="0.01" min="0" class="w-full px-4 py-3 md:py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-sagra-400 focus:border-sagra-400 outline-none transition text-base" placeholder="0.00">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Data *</label>
+                                <input type="date" id="versamento-data" required class="w-full px-4 py-3 md:py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-sagra-400 focus:border-sagra-400 outline-none transition text-base">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Note</label>
+                                <input type="text" id="versamento-note" class="w-full px-4 py-3 md:py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-sagra-400 focus:border-sagra-400 outline-none transition text-base" placeholder="Note (facoltativo)...">
+                            </div>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-3 mt-4">
+                            <button type="submit" id="versamento-submit-btn" class="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3.5 md:py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 transition shadow-md hover:shadow-lg text-base touch-target">
+                                🏦 Registra Versamento
+                            </button>
+                            <button type="button" id="versamento-cancel-btn" onclick="cancelVersamentoEdit()" class="hidden flex-1 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 py-3.5 md:py-3 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500 transition text-base touch-target">
+                                ❌ Annulla
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Riepilogo Versamenti -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
+                    <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-center">
+                        <p class="text-sm text-blue-600 dark:text-blue-400">Totale Versato in Banca</p>
+                        <p id="versamenti-totale" class="text-2xl font-bold text-blue-700 dark:text-blue-300">€ 0,00</p>
+                    </div>
+                </div>
+
+                <!-- Lista Versamenti -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">📋 Elenco Versamenti</h3>
+                    <div id="versamenti-list" class="space-y-3">
+                        <p class="text-center text-gray-400 dark:text-gray-500 py-8">Nessun versamento registrato</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Riepilogo -->
+        <section id="section-riepilogo" class="hidden fade-in">
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                            <span class="text-2xl">📈</span>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Totale Entrate</p>
+                            <p id="total-entrate" class="text-2xl font-bold text-green-600 dark:text-green-400">€ 0,00</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
+                            <span class="text-2xl">📉</span>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Totale Uscite</p>
+                            <p id="total-uscite" class="text-2xl font-bold text-red-600 dark:text-red-400">€ 0,00</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-sagra-100 dark:bg-sagra-900/30 rounded-lg flex items-center justify-center">
+                            <span class="text-2xl">💰</span>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Saldo Netto</p>
+                            <p id="total-saldo" class="text-2xl font-bold">€ 0,00</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Versamenti summary in report -->
+            <div id="versamenti-report-info" class="hidden bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center">
+                        <span class="text-xl">🏦</span>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-blue-800 dark:text-blue-300">Versamenti in Banca</p>
+                        <p id="versamenti-report-details" class="text-xs text-blue-600 dark:text-blue-400"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export Buttons -->
+            <div class="flex flex-wrap gap-3 mb-6">
+                <button onclick="exportExcel()" class="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2 text-sm font-medium shadow-sm">
+                    📊 Esporta Excel
+                </button>
+                <button onclick="exportPDF()" class="px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2 text-sm font-medium shadow-sm">
+                    📄 Esporta PDF
+                </button>
+            </div>
+
+            <!-- Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 md:p-6">
+                    <h3 class="text-base md:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">📊 Distribuzione Uscite per Settore</h3>
+                    <div class="relative w-full overflow-x-auto" style="min-height: 250px; height: 300px;">
+                        <canvas id="chart-settore"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 md:p-6">
+                    <h3 class="text-base md:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">📈 Uscite per Settore</h3>
+                    <div class="relative w-full overflow-x-auto" style="min-height: 250px; height: 300px;">
+                        <canvas id="chart-bar"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sector Summary Table -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 md:p-6">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">📋 Riepilogo per Settore</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Settore</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Tipo</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">N° Voci</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Totale</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Media/Voce</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sector-summary-body" class="divide-y divide-gray-100 dark:divide-gray-700">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // ===== PWA MANIFEST (inline) =====
+        const manifestData = {
+            name: "Sagra di Meolo - Gestione",
+            short_name: "Sagra Meolo",
+            description: "Gestione Entrate e Uscite della Sagra di Meolo",
+            start_url: window.location.href,
+            display: "standalone",
+            background_color: "#fffbeb",
+            theme_color: "#d97706",
+            orientation: "any",
+            icons: [
+                {
+                    src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎪</text></svg>",
+                    sizes: "any",
+                    type: "image/svg+xml"
+                }
+            ]
+        };
+        const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+        const manifestURL = URL.createObjectURL(manifestBlob);
+        document.getElementById('manifest-link').setAttribute('href', manifestURL);
+
+        // ===== PWA Install Prompt =====
+        let deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('install-btn').classList.remove('hidden');
+        });
+
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        showToast('📲 App installata!');
+                    }
+                    deferredPrompt = null;
+                    document.getElementById('install-btn').classList.add('hidden');
+                });
+            } else {
+                showToast('ℹ️ Usa "Aggiungi a schermata Home" dal menu del browser', 'warning');
+            }
+            toggleSettings();
+        }
+
+        // ===== SERVICE WORKER REGISTRATION =====
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                const CACHE_NAME = 'sagra-meolo-v1';
+                self.addEventListener('install', e => { self.skipWaiting(); });
+                self.addEventListener('activate', e => { e.waitUntil(clients.claim()); });
+                self.addEventListener('fetch', e => {
+                    if (e.request.method !== 'GET') return;
+                    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+                });
+            `;
+        }
+
+        // ===== EDITION (YEAR) MANAGEMENT =====
+        let editions = JSON.parse(localStorage.getItem('sagra_editions') || '[]');
+        let currentEdition = localStorage.getItem('sagra_current_edition') || '';
+
+        function initEditions() {
+            const currentYear = new Date().getFullYear().toString();
+            
+            // Auto-create current year edition if no editions exist
+            if (editions.length === 0) {
+                editions.push(currentYear);
+                localStorage.setItem('sagra_editions', JSON.stringify(editions));
+            }
+            
+            // Set current edition if not set
+            if (!currentEdition || !editions.includes(currentEdition)) {
+                currentEdition = editions.includes(currentYear) ? currentYear : editions[editions.length - 1];
+                localStorage.setItem('sagra_current_edition', currentEdition);
+            }
+            
+            updateEditionSelector();
+        }
+
+        function updateEditionSelector() {
+            const select = document.getElementById('edition-select');
+            const sorted = [...editions].sort((a, b) => parseInt(b) - parseInt(a));
+            select.innerHTML = sorted.map(year => 
+                `<option value="${year}" ${year === currentEdition ? 'selected' : ''}>📅 Edizione ${year}</option>`
+            ).join('');
+        }
+
+        function switchEdition(year) {
+            if (year === currentEdition) return;
+            // Save current data first (already saved in localStorage)
+            currentEdition = year;
+            localStorage.setItem('sagra_current_edition', currentEdition);
+            // Load data for new edition
+            loadEditionData();
+            updateCustomSectorsInDropdown();
+            populateFilterSectors();
+            updateTabCounts();
+            refreshUI();
+            resetForm();
+            resetVersamentoForm();
+            showToast(`📅 Passato all'edizione ${year}`);
+        }
+
+        function openEditionModal() {
+            document.getElementById('edition-modal').classList.remove('hidden');
+            document.getElementById('new-edition-year').value = '';
+            renderEditionsList();
+        }
+
+        function closeEditionModal() {
+            document.getElementById('edition-modal').classList.add('hidden');
+        }
+
+        function createEdition() {
+            const yearInput = document.getElementById('new-edition-year').value.trim();
+            const year = parseInt(yearInput);
+            
+            if (!year || year < 2000 || year > 2099) {
+                showToast('⚠️ Inserisci un anno valido (2000-2099)', 'warning');
+                return;
+            }
+            
+            const yearStr = year.toString();
+            if (editions.includes(yearStr)) {
+                showToast('⚠️ Questa edizione esiste già!', 'warning');
+                return;
+            }
+            
+            editions.push(yearStr);
+            editions.sort((a, b) => parseInt(b) - parseInt(a));
+            localStorage.setItem('sagra_editions', JSON.stringify(editions));
+            
+            // Switch to new edition
+            switchEdition(yearStr);
+            updateEditionSelector();
+            renderEditionsList();
+            document.getElementById('new-edition-year').value = '';
+            showToast(`✅ Edizione ${yearStr} creata!`);
+        }
+
+        function deleteEdition(year) {
+            if (editions.length <= 1) {
+                showToast('⚠️ Non puoi eliminare l\'ultima edizione!', 'warning');
+                return;
+            }
+            if (!confirm(`⚠️ Eliminare l'edizione ${year} e TUTTI i suoi dati? Questa operazione non è reversibile.`)) return;
+            if (!confirm(`⚠️ Sei veramente sicuro? Tutti i dati dell'edizione ${year} andranno persi!`)) return;
+            
+            // Remove edition data from localStorage
+            localStorage.removeItem(`sagra_${year}_entries`);
+            localStorage.removeItem(`sagra_${year}_versamenti`);
+            localStorage.removeItem(`sagra_${year}_custom_sectors`);
+            
+            // Remove from editions list
+            editions = editions.filter(e => e !== year);
+            localStorage.setItem('sagra_editions', JSON.stringify(editions));
+            
+            // If deleted current edition, switch to another
+            if (currentEdition === year) {
+                currentEdition = editions[0];
+                localStorage.setItem('sagra_current_edition', currentEdition);
+                loadEditionData();
+                updateCustomSectorsInDropdown();
+                populateFilterSectors();
+                updateTabCounts();
+                refreshUI();
+            }
+            
+            updateEditionSelector();
+            renderEditionsList();
+            showToast(`🗑️ Edizione ${year} eliminata`);
+        }
+
+        function renderEditionsList() {
+            const list = document.getElementById('editions-list');
+            const sorted = [...editions].sort((a, b) => parseInt(b) - parseInt(a));
+            
+            list.innerHTML = sorted.map(year => {
+                const isCurrent = year === currentEdition;
+                const entriesCount = JSON.parse(localStorage.getItem(`sagra_${year}_entries`) || '[]').length;
+                return `
+                    <div class="flex items-center justify-between p-3 rounded-lg ${isCurrent ? 'bg-sagra-50 dark:bg-sagra-900/20 border border-sagra-200 dark:border-sagra-700' : 'bg-gray-50 dark:bg-gray-700'}">
+                        <div class="flex items-center gap-3">
+                            <span class="text-lg">${isCurrent ? '📅' : '📋'}</span>
+                            <div>
+                                <p class="font-semibold text-gray-800 dark:text-gray-100 text-sm">Edizione ${year} ${isCurrent ? '<span class="text-xs text-sagra-600 dark:text-sagra-400">(attiva)</span>' : ''}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">${entriesCount} voci</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            ${!isCurrent ? `<button onclick="switchEdition('${year}'); closeEditionModal();" class="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition">Seleziona</button>` : ''}
+                            <button onclick="deleteEdition('${year}')" class="px-2 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50 transition" title="Elimina edizione">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ===== DATA MANAGEMENT (Edition-based) =====
+        let entries = [];
+        let versamenti = [];
+        let customSectors = [];
+        let darkMode = JSON.parse(localStorage.getItem('sagra_dark_mode') || 'false');
+        let chartSettore = null;
+        let chartBar = null;
+        let currentSort = { field: 'data', direction: 'desc' };
+
+        function getStorageKey(type) {
+            return `sagra_${currentEdition}_${type}`;
+        }
+
+        function loadEditionData() {
+            entries = JSON.parse(localStorage.getItem(getStorageKey('entries')) || '[]');
+            versamenti = JSON.parse(localStorage.getItem(getStorageKey('versamenti')) || '[]');
+            customSectors = JSON.parse(localStorage.getItem(getStorageKey('custom_sectors')) || '[]');
+        }
+
+        function saveData() {
+            localStorage.setItem(getStorageKey('entries'), JSON.stringify(entries));
+            localStorage.setItem(getStorageKey('versamenti'), JSON.stringify(versamenti));
+            localStorage.setItem(getStorageKey('custom_sectors'), JSON.stringify(customSectors));
+            // Sync to Firebase if connected
+            if (firebaseConnected && !isSyncing) {
+                pushToFirebase();
+            }
+            // Broadcast to other tabs
+            broadcastSync();
+        }
+
+        // ===== SYNC STATE =====
+        let groupCode = localStorage.getItem('sagra_group_code') || '';
+        let firebaseConfig = JSON.parse(localStorage.getItem('sagra_firebase_config') || 'null');
+        let firebaseApp = null;
+        let firebaseDB = null;
+        let firebaseConnected = false;
+        let syncListeners = [];
+        let isSyncing = false;
+        let broadcastChannel = null;
+
+        const defaultSectors = ['Capannone', 'Birra', 'Sponsor', 'Tipografia', 'Supermercato', 'Bar', 'Carne', 'Pesce', 'Vino', 'Plastica', 'Intrattenimento', 'Incassi', 'Altro'];
+        const entrataOnlySectors = ['Sponsor', 'Incassi'];
+
+        const sectorEmojis = {
+            'Capannone': '🏗️', 'Birra': '🍺', 'Sponsor': '🤝', 'Tipografia': '🖨️',
+            'Supermercato': '🛒', 'Bar': '☕', 'Carne': '🥩', 'Pesce': '🐟',
+            'Vino': '🍷', 'Plastica': '♻️', 'Intrattenimento': '🎶', 'Incassi': '💰', 'Altro': '📦'
+        };
+
+        function getAllSectors() {
+            return [...defaultSectors, ...customSectors];
+        }
+
+        function getTipoForSettore(settore) {
+            return entrataOnlySectors.includes(settore) ? 'entrata' : 'uscita';
+        }
+
+        // ===== BROADCAST CHANNEL (same browser tabs sync) =====
+        function initBroadcastChannel() {
+            try {
+                if (broadcastChannel) {
+                    broadcastChannel.close();
+                }
+                const channelName = groupCode ? 'sagra_sync_' + groupCode : 'sagra_sync_local';
+                broadcastChannel = new BroadcastChannel(channelName);
+                broadcastChannel.onmessage = (event) => {
+                    if (event.data && event.data.type === 'sync' && event.data.edition === currentEdition) {
+                        isSyncing = true;
+                        entries = event.data.entries || [];
+                        versamenti = event.data.versamenti || [];
+                        customSectors = event.data.customSectors || [];
+                        localStorage.setItem(getStorageKey('entries'), JSON.stringify(entries));
+                        localStorage.setItem(getStorageKey('versamenti'), JSON.stringify(versamenti));
+                        localStorage.setItem(getStorageKey('custom_sectors'), JSON.stringify(customSectors));
+                        refreshUI();
+                        isSyncing = false;
+                    }
+                };
+            } catch (e) {}
+        }
+
+        function broadcastSync() {
+            if (broadcastChannel) {
+                try {
+                    broadcastChannel.postMessage({
+                        type: 'sync',
+                        edition: currentEdition,
+                        entries: entries,
+                        versamenti: versamenti,
+                        customSectors: customSectors
+                    });
+                } catch (e) {}
+            }
+        }
+
+        // ===== FIREBASE SYNC =====
+        function initFirebase() {
+            if (!firebaseConfig || !firebaseConfig.databaseURL || !firebaseConfig.apiKey) {
+                updateSyncStatus('local');
+                return;
+            }
+
+            try {
+                const config = {
+                    apiKey: firebaseConfig.apiKey,
+                    authDomain: firebaseConfig.projectId + '.firebaseapp.com',
+                    databaseURL: firebaseConfig.databaseURL,
+                    projectId: firebaseConfig.projectId,
+                    storageBucket: firebaseConfig.projectId + '.appspot.com',
+                    messagingSenderId: '000000000000',
+                    appId: 'sagra-meolo-app'
+                };
+
+                if (firebaseApp) {
+                    firebaseApp.delete().then(() => {
+                        startFirebase(config);
+                    });
+                } else {
+                    startFirebase(config);
+                }
+            } catch (e) {
+                console.error('Firebase init error:', e);
+                updateSyncStatus('error');
+            }
+        }
+
+        function startFirebase(config) {
+            try {
+                firebaseApp = firebase.initializeApp(config, 'sagra-' + Date.now());
+                firebaseDB = firebaseApp.database();
+                firebaseDB.goOnline();
+
+                const connRef = firebaseDB.ref('.info/connected');
+                connRef.on('value', (snap) => {
+                    if (snap.val() === true) {
+                        firebaseConnected = true;
+                        updateSyncStatus('connected');
+                    } else {
+                        firebaseConnected = false;
+                        updateSyncStatus('offline');
+                    }
+                });
+
+                setupFirebaseListeners();
+                pushToFirebase();
+            } catch (e) {
+                console.error('Firebase start error:', e);
+                updateSyncStatus('error');
+            }
+        }
+
+        function getFirebasePath() {
+            return groupCode ? `groups/${groupCode}/editions/${currentEdition}` : `local/editions/${currentEdition}`;
+        }
+
+        function setupFirebaseListeners() {
+            if (!firebaseDB || !groupCode) return;
+
+            syncListeners.forEach(ref => ref.off());
+            syncListeners = [];
+
+            const basePath = getFirebasePath();
+
+            const entriesRef = firebaseDB.ref(`${basePath}/entries`);
+            entriesRef.on('value', (snapshot) => {
+                if (isSyncing) return;
+                isSyncing = true;
+                const data = snapshot.val();
+                if (data) {
+                    entries = Object.values(data);
+                } else {
+                    if (entries.length === 0) entries = [];
+                }
+                localStorage.setItem(getStorageKey('entries'), JSON.stringify(entries));
+                refreshUI();
+                isSyncing = false;
+            });
+            syncListeners.push(entriesRef);
+
+            const versamentiRef = firebaseDB.ref(`${basePath}/versamenti`);
+            versamentiRef.on('value', (snapshot) => {
+                if (isSyncing) return;
+                isSyncing = true;
+                const data = snapshot.val();
+                if (data) {
+                    versamenti = Object.values(data);
+                } else {
+                    if (versamenti.length === 0) versamenti = [];
+                }
+                localStorage.setItem(getStorageKey('versamenti'), JSON.stringify(versamenti));
+                refreshUI();
+                isSyncing = false;
+            });
+            syncListeners.push(versamentiRef);
+
+            const sectorsRef = firebaseDB.ref(`${basePath}/customSectors`);
+            sectorsRef.on('value', (snapshot) => {
+                if (isSyncing) return;
+                isSyncing = true;
+                const data = snapshot.val();
+                if (data) {
+                    customSectors = Array.isArray(data) ? data : Object.values(data);
+                } else {
+                    if (customSectors.length === 0) customSectors = [];
+                }
+                localStorage.setItem(getStorageKey('custom_sectors'), JSON.stringify(customSectors));
+                updateCustomSectorsInDropdown();
+                populateFilterSectors();
+                isSyncing = false;
+            });
+            syncListeners.push(sectorsRef);
+        }
+
+        function pushToFirebase() {
+            if (!firebaseDB || !groupCode) return;
+
+            const basePath = getFirebasePath();
+            updateSyncStatus('syncing');
+
+            try {
+                const entriesObj = {};
+                entries.forEach(e => { entriesObj[e.id] = e; });
+
+                const versamentiObj = {};
+                versamenti.forEach(v => { versamentiObj[v.id] = v; });
+
+                const updates = {};
+                updates[`${basePath}/entries`] = entriesObj;
+                updates[`${basePath}/versamenti`] = versamentiObj;
+                updates[`${basePath}/customSectors`] = customSectors;
+                updates[`${basePath}/lastUpdated`] = new Date().toISOString();
+
+                firebaseDB.ref().update(updates).then(() => {
+                    updateSyncStatus('connected');
+                }).catch((err) => {
+                    console.error('Push error:', err);
+                    updateSyncStatus('error');
+                });
+            } catch (e) {
+                console.error('Push error:', e);
+                updateSyncStatus('error');
+            }
+        }
+
+        function disconnectFirebase() {
+            if (firebaseApp) {
+                syncListeners.forEach(ref => ref.off());
+                syncListeners = [];
+                firebaseApp.delete().catch(() => {});
+                firebaseApp = null;
+                firebaseDB = null;
+            }
+            firebaseConnected = false;
+            firebaseConfig = null;
+            localStorage.removeItem('sagra_firebase_config');
+            updateSyncStatus('local');
+            showToast('🔌 Firebase disconnesso');
+        }
+
+        // ===== SYNC STATUS UI =====
+        function updateSyncStatus(status) {
+            const dot = document.getElementById('sync-dot');
+            const label = document.getElementById('sync-label');
+            const detailEl = document.getElementById('sync-status-detail');
+
+            switch (status) {
+                case 'connected':
+                    dot.className = 'sync-dot bg-green-400';
+                    dot.classList.remove('sync-pulse');
+                    label.textContent = 'Sincronizzato';
+                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-green-400" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-green-600 dark:text-green-400 ml-2">Connesso e sincronizzato</span>';
+                    break;
+                case 'syncing':
+                    dot.className = 'sync-dot bg-yellow-400 sync-pulse';
+                    label.textContent = 'Sincronizzando...';
+                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-yellow-400 sync-pulse" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-yellow-600 dark:text-yellow-400 ml-2">Sincronizzazione in corso...</span>';
+                    break;
+                case 'offline':
+                    dot.className = 'sync-dot bg-orange-400';
+                    dot.classList.remove('sync-pulse');
+                    label.textContent = 'Offline';
+                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-orange-400" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-orange-600 dark:text-orange-400 ml-2">Offline - i dati saranno sincronizzati alla riconnessione</span>';
+                    break;
+                case 'error':
+                    dot.className = 'sync-dot bg-red-400';
+                    dot.classList.remove('sync-pulse');
+                    label.textContent = 'Errore';
+                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-red-400" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-red-600 dark:text-red-400 ml-2">Errore di connessione</span>';
+                    break;
+                case 'local':
+                default:
+                    dot.className = 'sync-dot bg-gray-400';
+                    dot.classList.remove('sync-pulse');
+                    label.textContent = 'Locale';
+                    if (detailEl) detailEl.innerHTML = '<span class="sync-dot bg-gray-400" style="width:8px;height:8px;border-radius:50%;display:inline-block;"></span><span class="text-sm text-gray-600 dark:text-gray-300 ml-2">Solo locale - nessuna sincronizzazione attiva</span>';
+                    break;
+            }
+        }
+
+        // ===== GROUP CODE MANAGEMENT =====
+        function generateGroupCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+
+        function createNewGroup() {
+            groupCode = generateGroupCode();
+            localStorage.setItem('sagra_group_code', groupCode);
+            document.getElementById('setup-modal').classList.add('hidden');
+            updateGroupCodeDisplay();
+            initBroadcastChannel();
+            if (firebaseConfig) {
+                initFirebase();
+            }
+            showToast(`✅ Gruppo creato! Codice: ${groupCode}`);
+        }
+
+        function joinGroup() {
+            const code = document.getElementById('join-group-code').value.trim().toUpperCase();
+            if (!code || code.length !== 6) {
+                showToast('⚠️ Inserisci un codice di 6 caratteri', 'warning');
+                return;
+            }
+            groupCode = code;
+            localStorage.setItem('sagra_group_code', groupCode);
+            document.getElementById('setup-modal').classList.add('hidden');
+            updateGroupCodeDisplay();
+            initBroadcastChannel();
+            if (firebaseConfig) {
+                initFirebase();
+            }
+            showToast(`✅ Unito al gruppo: ${groupCode}`);
+        }
+
+        function skipSetup() {
+            localStorage.setItem('sagra_setup_done', 'true');
+            document.getElementById('setup-modal').classList.add('hidden');
+            updateSyncStatus('local');
+        }
+
+        function changeGroup() {
+            closeSyncModal();
+            document.getElementById('setup-modal').classList.remove('hidden');
+        }
+
+        function updateGroupCodeDisplay() {
+            const codeEl = document.getElementById('sync-current-code');
+            if (codeEl) {
+                codeEl.textContent = groupCode || '------';
+            }
+        }
+
+        function copyGroupCode() {
+            if (groupCode) {
+                navigator.clipboard.writeText(groupCode).then(() => {
+                    showToast('📋 Codice copiato: ' + groupCode);
+                }).catch(() => {
+                    const ta = document.createElement('textarea');
+                    ta.value = groupCode;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    showToast('📋 Codice copiato: ' + groupCode);
+                });
+            }
+        }
+
+        // ===== SYNC MODAL =====
+        function openSyncModal() {
+            document.getElementById('sync-modal').classList.remove('hidden');
+            updateGroupCodeDisplay();
+            if (firebaseConfig) {
+                document.getElementById('firebase-url').value = firebaseConfig.databaseURL || '';
+                document.getElementById('firebase-apikey').value = firebaseConfig.apiKey || '';
+                document.getElementById('firebase-projectid').value = firebaseConfig.projectId || '';
+            }
+        }
+
+        function closeSyncModal() {
+            document.getElementById('sync-modal').classList.add('hidden');
+        }
+
+        function saveFirebaseConfig() {
+            const url = document.getElementById('firebase-url').value.trim();
+            const apiKey = document.getElementById('firebase-apikey').value.trim();
+            const projectId = document.getElementById('firebase-projectid').value.trim();
+
+            if (!url || !apiKey || !projectId) {
+                showToast('⚠️ Compila tutti i campi obbligatori', 'warning');
+                return;
+            }
+
+            firebaseConfig = { databaseURL: url, apiKey: apiKey, projectId: projectId };
+            localStorage.setItem('sagra_firebase_config', JSON.stringify(firebaseConfig));
+
+            if (!groupCode) {
+                groupCode = generateGroupCode();
+                localStorage.setItem('sagra_group_code', groupCode);
+                updateGroupCodeDisplay();
+            }
+
+            initFirebase();
+            showToast('🔗 Connessione Firebase configurata!');
+        }
+
+        // ===== MANUAL SYNC (Export/Import) =====
+        function exportSyncData() {
+            const syncData = {
+                entries: entries,
+                versamenti: versamenti,
+                customSectors: customSectors,
+                edition: currentEdition,
+                groupCode: groupCode,
+                exportDate: new Date().toISOString(),
+                version: '2.2-editions'
+            };
+            const blob = new Blob([JSON.stringify(syncData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Sagra_Sync_${currentEdition}_${groupCode || 'local'}_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('📤 Dati esportati per sincronizzazione!');
+        }
+
+        function importSyncData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (!data.entries || !Array.isArray(data.entries)) {
+                        throw new Error('Formato non valido');
+                    }
+                    if (!confirm(`Importare ${data.entries.length} voci e ${(data.versamenti || []).length} versamenti nell'edizione ${currentEdition}? I dati attuali saranno UNITI con quelli importati.`)) return;
+
+                    const existingEntryIds = new Set(entries.map(e => e.id));
+                    const newEntries = (data.entries || []).filter(e => !existingEntryIds.has(e.id));
+                    entries = [...entries, ...newEntries];
+
+                    const existingVersIds = new Set(versamenti.map(v => v.id));
+                    const newVersamenti = (data.versamenti || []).filter(v => !existingVersIds.has(v.id));
+                    versamenti = [...versamenti, ...newVersamenti];
+
+                    const existingSectors = new Set(customSectors);
+                    (data.customSectors || []).forEach(s => {
+                        if (!existingSectors.has(s) && !defaultSectors.includes(s)) {
+                            customSectors.push(s);
+                        }
+                    });
+
+                    saveData();
+                    updateCustomSectorsInDropdown();
+                    populateFilterSectors();
+                    refreshUI();
+                    showToast(`✅ Importati ${newEntries.length} nuove voci e ${newVersamenti.length} nuovi versamenti!`);
+                } catch (err) {
+                    showToast('❌ Errore: file non valido', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // ===== REFRESH UI =====
+        function refreshUI() {
+            updateTabCounts();
+            updateCustomSectorsInDropdown();
+            const visibleSection = document.querySelector('main > section:not(.hidden)');
+            if (visibleSection) {
+                const id = visibleSection.id;
+                if (id === 'section-voci') renderEntries();
+                if (id === 'section-versamenti') renderVersamenti();
+                if (id === 'section-riepilogo') renderSummary();
+            }
+        }
+
+        // ===== DARK MODE =====
+        function initDarkMode() {
+            if (darkMode) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('dark-mode-icon').textContent = '☀️';
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('dark-mode-icon').textContent = '🌙';
+            }
+        }
+
+        function toggleDarkMode() {
+            darkMode = !darkMode;
+            localStorage.setItem('sagra_dark_mode', JSON.stringify(darkMode));
+            initDarkMode();
+        }
+
+        // ===== INITIALIZATION =====
+        function init() {
+            initDarkMode();
+            initEditions();
+            loadEditionData();
+            
+            document.getElementById('data').valueAsDate = new Date();
+            document.getElementById('versamento-data').valueAsDate = new Date();
+            updateCustomSectorsInDropdown();
+            onSettoreChange();
+            updatePreview();
+            populateFilterSectors();
+            updateTabCounts();
+            updateGroupCodeDisplay();
+
+            initBroadcastChannel();
+
+            const setupDone = localStorage.getItem('sagra_setup_done');
+            if (!groupCode && !setupDone) {
+                setTimeout(() => {
+                    document.getElementById('setup-modal').classList.remove('hidden');
+                }, 500);
+            }
+
+            if (firebaseConfig && groupCode) {
+                initFirebase();
+            } else {
+                updateSyncStatus('local');
+            }
+        }
+
+        function updateTabCounts() {
+            const vociCount = entries.length;
+            const versamentiCount = versamenti.length;
+            document.getElementById('tab-voci-count').textContent = vociCount > 0 ? vociCount : '';
+            document.getElementById('tab-versamenti-count').textContent = versamentiCount > 0 ? versamentiCount : '';
+        }
+
+        function updateCustomSectorsInDropdown() {
+            const select = document.getElementById('settore');
+            const customOptions = select.querySelectorAll('.custom-sector-option');
+            customOptions.forEach(opt => opt.remove());
+            customSectors.forEach(sector => {
+                const option = document.createElement('option');
+                option.value = sector;
+                option.textContent = `⭐ ${sector}`;
+                option.className = 'custom-sector-option';
+                select.appendChild(option);
+            });
+        }
+
+        // ===== TAB NAVIGATION =====
+        function switchTab(tab) {
+            document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(`section-${tab}`).classList.remove('hidden');
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-sagra-500', 'text-sagra-700', 'dark:text-sagra-400');
+                btn.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+            });
+            const activeTab = document.getElementById(`tab-${tab}`);
+            activeTab.classList.remove('border-transparent', 'text-gray-500');
+            activeTab.classList.add('border-sagra-500', 'text-sagra-700', 'dark:text-sagra-400');
+
+            document.querySelectorAll('.bottom-nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            const activeBnav = document.getElementById(`bnav-${tab}`);
+            if (activeBnav) activeBnav.classList.add('active');
+
+            if (tab === 'voci') {
+                renderEntries();
+                populateFilterSectors();
+            }
+            if (tab === 'versamenti') {
+                renderVersamenti();
+            }
+            if (tab === 'riepilogo') {
+                renderSummary();
+            }
+            updateTabCounts();
+        }
+
+        // ===== SETTINGS =====
+        function toggleSettings() {
+            const menu = document.getElementById('settings-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('settings-menu');
+            if (!e.target.closest('.relative') && !menu.classList.contains('hidden')) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        // ===== SECTOR MODAL =====
+        function openSectorModal() {
+            document.getElementById('sector-modal').classList.remove('hidden');
+            renderCustomSectorsList();
+        }
+
+        function closeSectorModal() {
+            document.getElementById('sector-modal').classList.add('hidden');
+        }
+
+        function renderCustomSectorsList() {
+            const list = document.getElementById('custom-sectors-list');
+            if (customSectors.length === 0) {
+                list.innerHTML = '<p class="text-sm text-gray-400 dark:text-gray-500 italic">Nessun settore personalizzato aggiunto</p>';
+                return;
+            }
+            list.innerHTML = customSectors.map(sector => `
+                <div class="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <span class="text-sm text-gray-700 dark:text-gray-200">⭐ ${escapeHtml(sector)}</span>
+                    <button onclick="removeCustomSector('${escapeHtml(sector)}')" class="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition" title="Rimuovi settore">
+                        ✕
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function addCustomSectorFromModal() {
+            const input = document.getElementById('new-sector-input');
+            const name = input.value.trim();
+            if (!name) {
+                showToast('⚠️ Inserisci un nome per il settore', 'warning');
+                return;
+            }
+            if (getAllSectors().includes(name)) {
+                showToast('⚠️ Questo settore esiste già!', 'warning');
+                return;
+            }
+            customSectors.push(name);
+            saveData();
+            updateCustomSectorsInDropdown();
+            populateFilterSectors();
+            renderCustomSectorsList();
+            input.value = '';
+            document.getElementById('settore').value = name;
+            onSettoreChange();
+            showToast('✅ Settore "' + name + '" aggiunto!');
+        }
+
+        function removeCustomSector(name) {
+            if (!confirm(`Rimuovere il settore "${name}"? Le voci già associate resteranno invariate.`)) return;
+            customSectors = customSectors.filter(s => s !== name);
+            saveData();
+            updateCustomSectorsInDropdown();
+            populateFilterSectors();
+            renderCustomSectorsList();
+            if (document.getElementById('settore').value === name) {
+                document.getElementById('settore').value = 'Capannone';
+                onSettoreChange();
+            }
+            showToast('🗑️ Settore "' + name + '" rimosso');
+        }
+
+        function addCustomSector() {
+            openSectorModal();
+        }
+
+        // ===== FORM LOGIC =====
+        function toggleIva() {
+            const toggle = document.getElementById('iva-toggle');
+            const container = document.getElementById('iva-select-container');
+            const label = document.getElementById('iva-label');
+            if (toggle.checked) {
+                container.classList.remove('hidden');
+                label.textContent = 'Applicata';
+            } else {
+                container.classList.add('hidden');
+                label.textContent = 'Non applicata';
+            }
+            updatePreview();
+        }
+
+        function onSettoreChange() {
+            const settore = document.getElementById('settore').value;
+            const tipo = getTipoForSettore(settore);
+            const badgeContent = document.getElementById('tipo-badge-content');
+            
+            if (tipo === 'entrata') {
+                badgeContent.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400';
+                badgeContent.textContent = '🟢 Entrata';
+            } else {
+                badgeContent.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+                badgeContent.textContent = '🔴 Uscita';
+            }
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const importo = parseFloat(document.getElementById('importo').value) || 0;
+            const quantita = parseFloat(document.getElementById('quantita').value) || 1;
+            const ivaEnabled = document.getElementById('iva-toggle').checked;
+            const ivaRate = ivaEnabled ? parseFloat(document.getElementById('iva-rate').value) : 0;
+
+            const netto = importo * quantita;
+            const ivaAmount = netto * (ivaRate / 100);
+            const lordo = netto + ivaAmount;
+
+            document.getElementById('preview-netto').textContent = formatCurrency(netto);
+            document.getElementById('preview-iva').textContent = formatCurrency(ivaAmount);
+            document.getElementById('preview-lordo').textContent = formatCurrency(lordo);
+        }
+
+        // ===== SAVE ENTRY =====
+        function saveEntry(event) {
+            event.preventDefault();
+
+            const editId = document.getElementById('edit-id').value;
+            const descrizione = document.getElementById('descrizione').value.trim();
+            const importo = parseFloat(document.getElementById('importo').value);
+            const quantita = parseFloat(document.getElementById('quantita').value) || 1;
+            const ivaEnabled = document.getElementById('iva-toggle').checked;
+            const ivaRate = ivaEnabled ? parseFloat(document.getElementById('iva-rate').value) : 0;
+            const settore = document.getElementById('settore').value;
+            const tipo = getTipoForSettore(settore);
+            const data = document.getElementById('data').value;
+            const note = document.getElementById('note').value.trim();
+
+            if (!descrizione || !importo || !data) {
+                showToast('⚠️ Compila tutti i campi obbligatori!', 'warning');
+                return;
+            }
+
+            const netto = importo * quantita;
+            const ivaAmount = netto * (ivaRate / 100);
+            const lordo = netto + ivaAmount;
+
+            const entry = {
+                id: editId || Date.now().toString(),
+                descrizione,
+                importoUnitario: importo,
+                quantita,
+                ivaRate,
+                tipo,
+                settore,
+                data,
+                note,
+                netto,
+                ivaAmount,
+                lordo,
+                createdAt: editId ? (entries.find(e => e.id === editId)?.createdAt || new Date().toISOString()) : new Date().toISOString()
+            };
+
+            if (editId) {
+                const index = entries.findIndex(e => e.id === editId);
+                if (index !== -1) entries[index] = entry;
+                document.getElementById('edit-id').value = '';
+                document.getElementById('submit-btn').innerHTML = '💾 Salva Voce';
+                document.getElementById('cancel-edit-btn').classList.add('hidden');
+                showToast('✅ Voce modificata con successo!');
+            } else {
+                entries.push(entry);
+                showToast('✅ Voce salvata con successo!');
+            }
+
+            saveData();
+            resetForm();
+            updateTabCounts();
+        }
+
+        function resetForm() {
+            document.getElementById('entry-form').reset();
+            document.getElementById('data').valueAsDate = new Date();
+            document.getElementById('quantita').value = 1;
+            document.getElementById('edit-id').value = '';
+            document.getElementById('submit-btn').innerHTML = '💾 Salva Voce';
+            document.getElementById('cancel-edit-btn').classList.add('hidden');
+            toggleIva();
+            onSettoreChange();
+            updatePreview();
+        }
+
+        function cancelEdit() {
+            resetForm();
+            showToast('ℹ️ Modifica annullata');
+        }
+
+        // ===== VERSAMENTI =====
+        function saveVersamento(event) {
+            event.preventDefault();
+            const editId = document.getElementById('versamento-edit-id').value;
+            const importo = parseFloat(document.getElementById('versamento-importo').value);
+            const data = document.getElementById('versamento-data').value;
+            const note = document.getElementById('versamento-note').value.trim();
+
+            if (!importo || !data) {
+                showToast('⚠️ Compila importo e data!', 'warning');
+                return;
+            }
+
+            const versamento = {
+                id: editId || Date.now().toString(),
+                importo,
+                data,
+                note,
+                createdAt: editId ? (versamenti.find(v => v.id === editId)?.createdAt || new Date().toISOString()) : new Date().toISOString()
+            };
+
+            if (editId) {
+                const index = versamenti.findIndex(v => v.id === editId);
+                if (index !== -1) versamenti[index] = versamento;
+                document.getElementById('versamento-edit-id').value = '';
+                document.getElementById('versamento-submit-btn').innerHTML = '🏦 Registra Versamento';
+                document.getElementById('versamento-cancel-btn').classList.add('hidden');
+                showToast('✅ Versamento modificato!');
+            } else {
+                versamenti.push(versamento);
+                showToast('✅ Versamento registrato!');
+            }
+
+            saveData();
+            resetVersamentoForm();
+            renderVersamenti();
+            updateTabCounts();
+        }
+
+        function resetVersamentoForm() {
+            document.getElementById('versamento-form').reset();
+            document.getElementById('versamento-data').valueAsDate = new Date();
+            document.getElementById('versamento-edit-id').value = '';
+            document.getElementById('versamento-submit-btn').innerHTML = '🏦 Registra Versamento';
+            document.getElementById('versamento-cancel-btn').classList.add('hidden');
+        }
+
+        function cancelVersamentoEdit() {
+            resetVersamentoForm();
+            showToast('ℹ️ Modifica annullata');
+        }
+
+        function editVersamento(id) {
+            const v = versamenti.find(x => x.id === id);
+            if (!v) return;
+            document.getElementById('versamento-edit-id').value = v.id;
+            document.getElementById('versamento-importo').value = v.importo;
+            document.getElementById('versamento-data').value = v.data;
+            document.getElementById('versamento-note').value = v.note || '';
+            document.getElementById('versamento-submit-btn').innerHTML = '✏️ Aggiorna Versamento';
+            document.getElementById('versamento-cancel-btn').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function deleteVersamento(id) {
+            if (!confirm('⚠️ Eliminare questo versamento?')) return;
+            versamenti = versamenti.filter(v => v.id !== id);
+            saveData();
+            renderVersamenti();
+            updateTabCounts();
+            showToast('🗑️ Versamento eliminato');
+        }
+
+        function renderVersamenti() {
+            const totaleVersato = versamenti.reduce((sum, v) => sum + v.importo, 0);
+
+            document.getElementById('versamenti-totale').textContent = formatCurrency(totaleVersato);
+
+            const list = document.getElementById('versamenti-list');
+            if (versamenti.length === 0) {
+                list.innerHTML = '<p class="text-center text-gray-400 dark:text-gray-500 py-8">Nessun versamento registrato</p>';
+                return;
+            }
+
+            const sorted = [...versamenti].sort((a, b) => b.data.localeCompare(a.data));
+            list.innerHTML = sorted.map(v => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                            <span class="text-lg">🏦</span>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-800 dark:text-gray-100">${formatCurrency(v.importo)}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">${formatDate(v.data)}${v.note ? ' • ' + escapeHtml(v.note) : ''}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-1">
+                        <button onclick="editVersamento('${v.id}')" class="p-2 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition" title="Modifica">✏️</button>
+                        <button onclick="deleteVersamento('${v.id}')" class="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition" title="Elimina">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ===== SORTING =====
+        function sortEntries(field) {
+            if (currentSort.field === field) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.field = field;
+                currentSort.direction = 'desc';
+            }
+            updateSortArrows();
+            renderEntries();
+        }
+
+        function updateSortArrows() {
+            document.querySelectorAll('.sort-arrow').forEach(el => el.textContent = '');
+            const arrow = document.getElementById(`sort-arrow-${currentSort.field}`);
+            if (arrow) {
+                arrow.textContent = currentSort.direction === 'asc' ? '▲' : '▼';
+            }
+        }
+
+        // ===== ENTRIES LIST =====
+        function renderEntries() {
+            const filtered = getFilteredEntries();
+            const tableBody = document.getElementById('entries-table-body');
+            const cardsContainer = document.getElementById('entries-cards');
+            const emptyState = document.getElementById('empty-state');
+            const countEl = document.getElementById('entries-count');
+
+            countEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'voce trovata' : 'voci trovate'}`;
+
+            if (filtered.length === 0) {
+                tableBody.innerHTML = '';
+                cardsContainer.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            // Desktop Table
+            tableBody.innerHTML = filtered.map(entry => `
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">${formatDate(entry.data)}</td>
+                    <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">${escapeHtml(entry.descrizione)}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">${getSectorEmoji(entry.settore)} ${entry.settore}</td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${entry.tipo === 'entrata' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}">
+                            ${entry.tipo === 'entrata' ? '🟢 Entrata' : '🔴 Uscita'}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-right font-medium dark:text-gray-200">${formatCurrency(entry.netto)}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-500 dark:text-gray-400">${formatCurrency(entry.ivaAmount)}</td>
+                    <td class="px-4 py-3 text-sm text-right font-bold ${entry.tipo === 'entrata' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${formatCurrency(entry.lordo)}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 max-w-32 truncate" title="${escapeHtml(entry.note)}">${escapeHtml(entry.note || '-')}</td>
+                    <td class="px-4 py-3 text-center">
+                        <div class="flex gap-1 justify-center">
+                            <button onclick="duplicateEntry('${entry.id}')" class="p-1.5 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition" title="Duplica">📋</button>
+                            <button onclick="editEntry('${entry.id}')" class="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition" title="Modifica">✏️</button>
+                            <button onclick="deleteEntry('${entry.id}')" class="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition" title="Elimina">🗑️</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Mobile Cards
+            cardsContainer.innerHTML = filtered.map(entry => `
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+                    <div class="flex items-start justify-between mb-2">
+                        <div>
+                            <h4 class="font-semibold text-gray-800 dark:text-gray-100">${escapeHtml(entry.descrizione)}</h4>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">${getSectorEmoji(entry.settore)} ${entry.settore} • ${formatDate(entry.data)}</p>
+                        </div>
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${entry.tipo === 'entrata' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}">
+                            ${entry.tipo === 'entrata' ? '🟢' : '🔴'} ${entry.tipo === 'entrata' ? 'Entrata' : 'Uscita'}
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center mb-3">
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-2">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Netto</p>
+                            <p class="text-sm font-semibold dark:text-gray-200">${formatCurrency(entry.netto)}</p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-2">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">IVA ${entry.ivaRate}%</p>
+                            <p class="text-sm font-semibold dark:text-gray-200">${formatCurrency(entry.ivaAmount)}</p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-2">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Lordo</p>
+                            <p class="text-sm font-bold ${entry.tipo === 'entrata' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${formatCurrency(entry.lordo)}</p>
+                        </div>
+                    </div>
+                    ${entry.note ? `<p class="text-xs text-gray-500 dark:text-gray-400 mb-2">📝 ${escapeHtml(entry.note)}</p>` : ''}
+                    <div class="flex gap-2 border-t border-gray-100 dark:border-gray-700 pt-3">
+                        <button onclick="duplicateEntry('${entry.id}')" class="flex-1 px-3 py-1.5 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg text-sm font-medium hover:bg-green-100 dark:hover:bg-green-900/50 transition">📋 Duplica</button>
+                        <button onclick="editEntry('${entry.id}')" class="flex-1 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-100 dark:hover:bg-blue-900/50 transition">✏️ Modifica</button>
+                        <button onclick="deleteEntry('${entry.id}')" class="flex-1 px-3 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-100 dark:hover:bg-red-900/50 transition">🗑️ Elimina</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ===== FILTERS =====
+        function getFilteredEntries() {
+            let filtered = [...entries];
+            
+            const settore = document.getElementById('filter-settore').value;
+            const desc = document.getElementById('filter-desc').value.toLowerCase();
+            const tipo = document.getElementById('filter-tipo').value;
+            const dataDa = document.getElementById('filter-data-da').value;
+            const dataA = document.getElementById('filter-data-a').value;
+            const importoMin = parseFloat(document.getElementById('filter-importo-min').value);
+            const importoMax = parseFloat(document.getElementById('filter-importo-max').value);
+
+            if (settore) filtered = filtered.filter(e => e.settore === settore);
+            if (desc) filtered = filtered.filter(e => e.descrizione.toLowerCase().includes(desc));
+            if (tipo) filtered = filtered.filter(e => e.tipo === tipo);
+            if (dataDa) filtered = filtered.filter(e => e.data >= dataDa);
+            if (dataA) filtered = filtered.filter(e => e.data <= dataA);
+            if (!isNaN(importoMin)) filtered = filtered.filter(e => e.lordo >= importoMin);
+            if (!isNaN(importoMax)) filtered = filtered.filter(e => e.lordo <= importoMax);
+
+            filtered.sort((a, b) => {
+                let valA, valB;
+                switch (currentSort.field) {
+                    case 'data':
+                        valA = a.data + (a.createdAt || '');
+                        valB = b.data + (b.createdAt || '');
+                        break;
+                    case 'settore':
+                        valA = a.settore.toLowerCase();
+                        valB = b.settore.toLowerCase();
+                        break;
+                    case 'lordo':
+                        valA = a.lordo;
+                        valB = b.lordo;
+                        break;
+                    default:
+                        valA = a.data;
+                        valB = b.data;
+                }
+                if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            return filtered;
+        }
+
+        function applyFilters() {
+            renderEntries();
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-settore').value = '';
+            document.getElementById('filter-desc').value = '';
+            document.getElementById('filter-tipo').value = '';
+            document.getElementById('filter-data-da').value = '';
+            document.getElementById('filter-data-a').value = '';
+            document.getElementById('filter-importo-min').value = '';
+            document.getElementById('filter-importo-max').value = '';
+            renderEntries();
+        }
+
+        function populateFilterSectors() {
+            const select = document.getElementById('filter-settore');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">Tutti i settori</option>';
+            getAllSectors().forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = `${getSectorEmoji(s)} ${s}`;
+                select.appendChild(opt);
+            });
+            select.value = currentVal;
+        }
+
+        // ===== EDIT, DUPLICATE & DELETE =====
+        function editEntry(id) {
+            const entry = entries.find(e => e.id === id);
+            if (!entry) return;
+
+            switchTab('inserimento');
+
+            document.getElementById('edit-id').value = entry.id;
+            document.getElementById('descrizione').value = entry.descrizione;
+            document.getElementById('importo').value = entry.importoUnitario;
+            document.getElementById('quantita').value = entry.quantita;
+            document.getElementById('data').value = entry.data;
+            document.getElementById('note').value = entry.note || '';
+            document.getElementById('settore').value = entry.settore;
+
+            if (entry.ivaRate > 0) {
+                document.getElementById('iva-toggle').checked = true;
+                document.getElementById('iva-rate').value = entry.ivaRate;
+            } else {
+                document.getElementById('iva-toggle').checked = false;
+            }
+            toggleIva();
+            onSettoreChange();
+
+            document.getElementById('submit-btn').innerHTML = '✏️ Aggiorna Voce';
+            document.getElementById('cancel-edit-btn').classList.remove('hidden');
+            updatePreview();
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function duplicateEntry(id) {
+            const entry = entries.find(e => e.id === id);
+            if (!entry) return;
+
+            switchTab('inserimento');
+
+            document.getElementById('edit-id').value = '';
+            document.getElementById('descrizione').value = entry.descrizione;
+            document.getElementById('importo').value = entry.importoUnitario;
+            document.getElementById('quantita').value = entry.quantita;
+            document.getElementById('data').valueAsDate = new Date();
+            document.getElementById('note').value = entry.note || '';
+            document.getElementById('settore').value = entry.settore;
+
+            if (entry.ivaRate > 0) {
+                document.getElementById('iva-toggle').checked = true;
+                document.getElementById('iva-rate').value = entry.ivaRate;
+            } else {
+                document.getElementById('iva-toggle').checked = false;
+            }
+            toggleIva();
+            onSettoreChange();
+
+            document.getElementById('submit-btn').innerHTML = '💾 Salva Voce';
+            document.getElementById('cancel-edit-btn').classList.add('hidden');
+            updatePreview();
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            showToast('📋 Voce duplicata - modifica e salva');
+        }
+
+        function deleteEntry(id) {
+            if (!confirm('⚠️ Sei sicuro di voler eliminare questa voce? L\'operazione non è reversibile.')) return;
+            entries = entries.filter(e => e.id !== id);
+            saveData();
+            renderEntries();
+            updateTabCounts();
+            showToast('🗑️ Voce eliminata');
+        }
+
+        // ===== SUMMARY =====
+        function renderSummary() {
+            const totalEntrate = entries.filter(e => e.tipo === 'entrata').reduce((sum, e) => sum + e.lordo, 0);
+            const totalUscite = entries.filter(e => e.tipo === 'uscita').reduce((sum, e) => sum + e.lordo, 0);
+            const saldo = totalEntrate - totalUscite;
+
+            document.getElementById('total-entrate').textContent = formatCurrency(totalEntrate);
+            document.getElementById('total-uscite').textContent = formatCurrency(totalUscite);
+            
+            const saldoEl = document.getElementById('total-saldo');
+            saldoEl.textContent = formatCurrency(saldo);
+            saldoEl.className = `text-2xl font-bold ${saldo >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`;
+
+            const totaleVersato = versamenti.reduce((sum, v) => sum + v.importo, 0);
+            const versReportInfo = document.getElementById('versamenti-report-info');
+            if (versamenti.length > 0) {
+                versReportInfo.classList.remove('hidden');
+                document.getElementById('versamenti-report-details').textContent = 
+                    `Totale versato in banca: ${formatCurrency(totaleVersato)} (${versamenti.length} versament${versamenti.length === 1 ? 'o' : 'i'})`;
+            } else {
+                versReportInfo.classList.add('hidden');
+            }
+
+            renderSectorSummary();
+            renderCharts();
+        }
+
+        function renderSectorSummary() {
+            const sectorData = {};
+
+            entries.forEach(e => {
+                const key = e.settore;
+                if (!sectorData[key]) {
+                    sectorData[key] = { total: 0, count: 0 };
+                }
+                sectorData[key].total += e.lordo;
+                sectorData[key].count += 1;
+            });
+
+            const body = document.getElementById('sector-summary-body');
+            body.innerHTML = Object.entries(sectorData)
+                .filter(([, data]) => data.total > 0)
+                .sort((a, b) => b[1].total - a[1].total)
+                .map(([sector, data]) => {
+                    const tipo = getTipoForSettore(sector);
+                    const isEntrata = tipo === 'entrata';
+                    const media = data.count > 0 ? data.total / data.count : 0;
+                    return `
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <td class="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100">${getSectorEmoji(sector)} ${sector}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="px-2 py-1 rounded-full text-xs font-medium ${isEntrata ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}">
+                                    ${isEntrata ? '🟢 Entrata' : '🔴 Uscita'}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-center text-gray-600 dark:text-gray-300">${data.count}</td>
+                            <td class="px-4 py-3 text-sm text-right font-bold ${isEntrata ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${formatCurrency(data.total)}</td>
+                            <td class="px-4 py-3 text-sm text-right text-gray-500 dark:text-gray-400">${formatCurrency(media)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+            if (!body.innerHTML) {
+                body.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Nessun dato disponibile</td></tr>';
+            }
+        }
+
+        function renderCharts() {
+            const usciteEntries = entries.filter(e => e.tipo === 'uscita');
+            const sectorTotals = {};
+            usciteEntries.forEach(e => {
+                if (!sectorTotals[e.settore]) sectorTotals[e.settore] = 0;
+                sectorTotals[e.settore] += e.lordo;
+            });
+
+            const activeSectors = Object.keys(sectorTotals).filter(s => sectorTotals[s] > 0).sort((a, b) => sectorTotals[b] - sectorTotals[a]);
+
+            const colors = [
+                '#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#8b5cf6',
+                '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
+                '#14b8a6', '#e11d48', '#0ea5e9'
+            ];
+
+            const isDark = darkMode;
+            const textColor = isDark ? '#e5e7eb' : '#374151';
+            const gridColor = isDark ? '#374151' : '#e5e7eb';
+
+            // Pie Chart
+            if (chartSettore) chartSettore.destroy();
+            const pieCtx = document.getElementById('chart-settore').getContext('2d');
+            const pieData = activeSectors.map(s => sectorTotals[s]);
+
+            chartSettore = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: activeSectors,
+                    datasets: [{
+                        data: pieData,
+                        backgroundColor: colors.slice(0, activeSectors.length),
+                        borderWidth: 2,
+                        borderColor: isDark ? '#1f2937' : '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { padding: 12, usePointStyle: true, font: { size: 11 }, color: textColor }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = ((context.raw / total) * 100).toFixed(1);
+                                    return ` ${context.label}: ${formatCurrency(context.raw)} (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Bar Chart
+            if (chartBar) chartBar.destroy();
+            const barCtx = document.getElementById('chart-bar').getContext('2d');
+
+            chartBar = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: activeSectors,
+                    datasets: [
+                        {
+                            label: 'Uscite',
+                            data: activeSectors.map(s => sectorTotals[s]),
+                            backgroundColor: '#ef4444',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { padding: 12, usePointStyle: true, color: textColor }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.dataset.label}: ${formatCurrency(context.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '€ ' + value.toLocaleString('it-IT');
+                                },
+                                color: textColor
+                            },
+                            grid: { color: gridColor }
+                        },
+                        x: {
+                            ticks: { font: { size: 10 }, color: textColor },
+                            grid: { color: gridColor }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ===== EXPORT =====
+        function exportExcel() {
+            if (entries.length === 0) {
+                showToast('⚠️ Nessun dato da esportare', 'warning');
+                return;
+            }
+
+            const data = entries.map(e => ({
+                'Data': formatDate(e.data),
+                'Descrizione': e.descrizione,
+                'Settore': e.settore,
+                'Tipo': e.tipo === 'entrata' ? 'Entrata' : 'Uscita',
+                'Importo Unitario (€)': e.importoUnitario,
+                'Quantità': e.quantita,
+                'Importo Netto (€)': Math.round(e.netto * 100) / 100,
+                'IVA (%)': e.ivaRate,
+                'IVA (€)': Math.round(e.ivaAmount * 100) / 100,
+                'Importo Lordo (€)': Math.round(e.lordo * 100) / 100,
+                'Note': e.note || ''
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Voci');
+
+            // Add summary sheet
+            const sectorSummary = [];
+            const sectors = getAllSectors();
+            sectors.forEach(s => {
+                const sectorEntries = entries.filter(e => e.settore === s);
+                const total = sectorEntries.reduce((sum, e) => sum + e.lordo, 0);
+                if (total > 0) {
+                    sectorSummary.push({
+                        'Settore': s,
+                        'Tipo': getTipoForSettore(s) === 'entrata' ? 'Entrata' : 'Uscita',
+                        'N° Voci': sectorEntries.length,
+                        'Importo Totale (€)': Math.round(total * 100) / 100,
+                        'Media per Voce (€)': Math.round((total / sectorEntries.length) * 100) / 100
+                    });
+                }
+            });
+
+            const ws2 = XLSX.utils.json_to_sheet(sectorSummary);
+            XLSX.utils.book_append_sheet(wb, ws2, 'Riepilogo');
+
+            // Add versamenti sheet
+            if (versamenti.length > 0) {
+                const versData = versamenti.map(v => ({
+                    'Data': formatDate(v.data),
+                    'Importo (€)': v.importo,
+                    'Note': v.note || ''
+                }));
+                const ws3 = XLSX.utils.json_to_sheet(versData);
+                XLSX.utils.book_append_sheet(wb, ws3, 'Versamenti');
+            }
+
+            XLSX.writeFile(wb, `Sagra_Meolo_${currentEdition}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+            showToast('📊 File Excel esportato!');
+        }
+
+        function exportPDF() {
+            if (entries.length === 0) {
+                showToast('⚠️ Nessun dato da esportare', 'warning');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Title
+            doc.setFontSize(20);
+            doc.setTextColor(180, 83, 9);
+            doc.text('Sagra di Meolo', 105, 20, { align: 'center' });
+            doc.setFontSize(12);
+            doc.setTextColor(100);
+            doc.text(`Riepilogo Entrate e Uscite - Edizione ${currentEdition}`, 105, 28, { align: 'center' });
+            doc.text(`Generato il: ${new Date().toLocaleDateString('it-IT')}`, 105, 35, { align: 'center' });
+
+            // Summary
+            const totalEntrate = entries.filter(e => e.tipo === 'entrata').reduce((sum, e) => sum + e.lordo, 0);
+            const totalUscite = entries.filter(e => e.tipo === 'uscita').reduce((sum, e) => sum + e.lordo, 0);
+            const saldo = totalEntrate - totalUscite;
+
+            doc.setFontSize(11);
+            doc.setTextColor(0);
+            doc.text(`Totale Entrate: ${formatCurrency(totalEntrate)}`, 14, 48);
+            doc.text(`Totale Uscite: ${formatCurrency(totalUscite)}`, 14, 55);
+            doc.setFontSize(12);
+            doc.text(`Saldo Netto: ${formatCurrency(saldo)}`, 14, 63);
+
+            let startY = 72;
+            if (versamenti.length > 0) {
+                const totaleVersato = versamenti.reduce((sum, v) => sum + v.importo, 0);
+                doc.setFontSize(10);
+                doc.setTextColor(50, 50, 150);
+                doc.text(`Versamenti in banca: ${formatCurrency(totaleVersato)}`, 14, startY);
+                startY += 10;
+            }
+
+            // Entries table
+            const tableData = [...entries].sort((a, b) => b.data.localeCompare(a.data)).map(e => [
+                formatDate(e.data),
+                e.descrizione.substring(0, 25),
+                e.settore,
+                e.tipo === 'entrata' ? 'Entrata' : 'Uscita',
+                formatCurrencyPlain(e.netto),
+                formatCurrencyPlain(e.ivaAmount),
+                formatCurrencyPlain(e.lordo)
+            ]);
+
+            doc.autoTable({
+                startY: startY,
+                head: [['Data', 'Descrizione', 'Settore', 'Tipo', 'Netto', 'IVA', 'Lordo']],
+                body: tableData,
+                styles: { fontSize: 8, cellPadding: 2 },
+                headStyles: { fillColor: [245, 158, 11], textColor: [255, 255, 255] },
+                alternateRowStyles: { fillColor: [255, 251, 235] },
+                columnStyles: {
+                    4: { halign: 'right' },
+                    5: { halign: 'right' },
+                    6: { halign: 'right' }
+                }
+            });
+
+            let finalY = doc.lastAutoTable.finalY + 10;
+
+            if (finalY > 250) {
+                doc.addPage();
+                finalY = 20;
+            }
+
+            doc.setFontSize(14);
+            doc.setTextColor(180, 83, 9);
+            doc.text('Riepilogo per Settore', 14, finalY);
+
+            const sectorData = [];
+            getAllSectors().forEach(s => {
+                const sectorEntries = entries.filter(e => e.settore === s);
+                const total = sectorEntries.reduce((sum, e) => sum + e.lordo, 0);
+                if (total > 0) {
+                    const media = total / sectorEntries.length;
+                    sectorData.push([s, getTipoForSettore(s) === 'entrata' ? 'Entrata' : 'Uscita', sectorEntries.length.toString(), formatCurrencyPlain(total), formatCurrencyPlain(media)]);
+                }
+            });
+
+            doc.autoTable({
+                startY: finalY + 5,
+                head: [['Settore', 'Tipo', 'N° Voci', 'Totale', 'Media/Voce']],
+                body: sectorData,
+                styles: { fontSize: 9, cellPadding: 3 },
+                headStyles: { fillColor: [245, 158, 11], textColor: [255, 255, 255] },
+                columnStyles: {
+                    3: { halign: 'right' },
+                    4: { halign: 'right' }
+                }
+            });
+
+            doc.save(`Sagra_Meolo_${currentEdition}_${new Date().toISOString().slice(0, 10)}.pdf`);
+            showToast('📄 File PDF esportato!');
+        }
+
+        // ===== BACKUP/RESTORE =====
+        function backupData() {
+            const backup = {
+                entries: entries,
+                versamenti: versamenti,
+                customSectors: customSectors,
+                edition: currentEdition,
+                editions: editions,
+                groupCode: groupCode,
+                exportDate: new Date().toISOString(),
+                version: '2.2-editions'
+            };
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Sagra_Meolo_Backup_${currentEdition}_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('💾 Backup scaricato!');
+            toggleSettings();
+        }
+
+        function restoreData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const backup = JSON.parse(e.target.result);
+                    if (!backup.entries || !Array.isArray(backup.entries)) {
+                        throw new Error('Formato non valido');
+                    }
+                    
+                    const targetEdition = backup.edition || currentEdition;
+                    if (!confirm(`⚠️ Stai per ripristinare ${backup.entries.length} voci nell'edizione ${targetEdition}. I dati attuali dell'edizione saranno sostituiti. Continuare?`)) return;
+                    
+                    // Ensure edition exists
+                    if (!editions.includes(targetEdition)) {
+                        editions.push(targetEdition);
+                        localStorage.setItem('sagra_editions', JSON.stringify(editions));
+                        updateEditionSelector();
+                    }
+                    
+                    // Switch to the target edition
+                    currentEdition = targetEdition;
+                    localStorage.setItem('sagra_current_edition', currentEdition);
+                    updateEditionSelector();
+                    
+                    entries = backup.entries;
+                    versamenti = backup.versamenti || [];
+                    customSectors = backup.customSectors || [];
+                    saveData();
+                    updateCustomSectorsInDropdown();
+                    populateFilterSectors();
+                    updateTabCounts();
+                    refreshUI();
+                    showToast(`📂 Ripristinate ${entries.length} voci nell'edizione ${targetEdition}!`);
+                } catch (err) {
+                    showToast('❌ Errore: file non valido', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+            toggleSettings();
+        }
+
+        function clearAllData() {
+            if (!confirm(`⚠️ ATTENZIONE: Stai per cancellare TUTTI i dati dell'edizione ${currentEdition}. Questa operazione non è reversibile. Continuare?`)) return;
+            if (!confirm(`⚠️ Sei veramente sicuro? Tutti i dati dell'edizione ${currentEdition} andranno persi!`)) return;
+            entries = [];
+            versamenti = [];
+            customSectors = [];
+            saveData();
+            updateCustomSectorsInDropdown();
+            resetForm();
+            updateTabCounts();
+            refreshUI();
+            showToast(`🗑️ Tutti i dati dell'edizione ${currentEdition} sono stati cancellati`);
+            toggleSettings();
+        }
+
+        // ===== UTILITY FUNCTIONS =====
+        function formatCurrency(amount) {
+            return '€ ' + amount.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        function formatCurrencyPlain(amount) {
+            return '€ ' + amount.toFixed(2).replace('.', ',');
+        }
+
+        function formatDate(dateStr) {
+            const parts = dateStr.split('-');
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        function getSectorEmoji(sector) {
+            return sectorEmojis[sector] || '⭐';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toast-message');
+            const inner = toast.querySelector('div');
+            
+            msgEl.textContent = message;
+            inner.className = `px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 toast-enter ${
+                type === 'success' ? 'bg-green-500 text-white' :
+                type === 'warning' ? 'bg-amber-500 text-white' :
+                'bg-red-500 text-white'
+            }`;
+            
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                inner.classList.remove('toast-enter');
+                inner.classList.add('toast-exit');
+                setTimeout(() => {
+                    toast.classList.add('hidden');
+                    inner.classList.remove('toast-exit');
+                }, 300);
+            }, 3000);
+        }
+
+        // ===== INITIALIZE =====
+        init();
+    </script>
+</body>
+</html>
